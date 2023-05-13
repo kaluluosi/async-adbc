@@ -2,8 +2,8 @@ import asyncio
 import functools
 from types import MethodType
 from typing import Any, AsyncGenerator
-from adbc.device import Device, Device, Status
-from adbc.protocol import request
+from adbc.device import Device, Status
+from adbc.protocol import create_connection
 from dataclasses import dataclass
 from dataclasses_json import dataclass_json
 
@@ -22,7 +22,7 @@ class DeviceStatusNotification:
 
 @dataclass_json
 @dataclass
-class FowradRule:
+class ForwardRule:
     serialno: str
     local: str
     remote: str
@@ -32,7 +32,17 @@ class ADBClient:
     """
     adb的命令分为两部分
     1. 一部分是ADBClient Host服务，例如 `adb version` `adb devices`，这类指令不依赖设备，属于ADBClient自己的功能。
-    2. 另一部分是Device服务，例如 如果adb只有一个设备连接的情况 `adb shell` 其实等同于 `adbc -s <第一个设备序号> shell`，这时候可以省略`-s`参数。
+    2. 另一部分是Device服务，例如 如果adb只有一个设备连接的情况 `adb shell` 其实等同于 `adb -s <第一个设备序号> shell`，这时候可以省略`-s`参数。
+
+    请求参数host-prefix 有 host、host-serial、host-usb、host-local三个值
+    1. host : 当devices只有一个设备的时候，将指令默认发给这个设备，如果存在多个设备，会失败
+    2. host-serial： 将指令定向发送到序号serial的设备， 等同于 `adb -s <设备序号>`
+    3. host-usb: 只有一台设备以usb连接时，将指令默认发给这个usb设备， adb没有对应的用法
+    4. host-local：只有一台模拟器设备连接的时候，将指令默认发给这个模拟器设备，adb没有对应的用法
+
+    1其实同时包含了3、4的规则，为的就是敲adb指令的时候能够有个默认设备去执行指令。
+    我们的ADBClient就不需要这么麻烦，我们只区分hsot和serial，host是用于设备无关服务，serial则是用于设备有关服务。
+
     """
 
     device_class = Device
@@ -47,8 +57,11 @@ class ADBClient:
         self.host = host
         self.port = port
 
+    async def create_connection(self):
+        return await create_connection(self.host, self.port)
+
     async def request(self, *args):
-        conn = await request(self.host, self.port)
+        conn = await create_connection(self.host, self.port)
         return await conn.request(*args)
 
     async def version(self):
@@ -145,11 +158,27 @@ class ADBClient:
         res = await res.text()
         lines = res.splitlines()
 
-        rules: list[FowradRule] = []
+        rules: list[ForwardRule] = []
 
         for line in lines:
             if line:
                 serialno, local, remote = line.split()
-                rules.append(FowradRule(serialno, local, remote))
+                rules.append(ForwardRule(serialno, local, remote))
 
         return rules
+
+    async def forward(
+        self, serialno: str, local: str, remote: str, norebind: bool = False
+    ):
+        if norebind:
+            await self.request(
+                "host-serial", serialno, "forward", "norebind", f"{local};{remote}"
+            )
+        else:
+            await self.request("host-serial", serialno, "forward", f"{local};{remote}")
+
+    async def forward_remove(self, serialno: str, local: str):
+        await self.request("host-serial", serialno, "killforward", local)
+
+    async def forward_remove_all(self, serialno: str):
+        await self.request("host-serial", serialno, "killforward-all")

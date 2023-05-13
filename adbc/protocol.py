@@ -40,7 +40,7 @@ def pack(msg: str) -> bytes:
     return b_length + b_data
 
 
-async def request(host: str = "127.0.0.1", port: int = 5037):
+async def create_connection(host: str = "127.0.0.1", port: int = 5037):
     conn = await asyncio.open_connection(host, port)
     return Conenction(*conn)
 
@@ -65,6 +65,9 @@ class Response:
         return recv
 
     async def trace(self) -> AsyncGenerator[bytes, Any]:
+        """
+        持续返回响应数据
+        """
         try:
             while True:
                 data = await self.byte()
@@ -73,6 +76,9 @@ class Response:
             pass
 
     async def trace_text(self) -> AsyncGenerator[str, Any]:
+        """
+        持续返回响应数据文本
+        """
         recv: bytes
         async for recv in self.trace():
             yield recv.decode()
