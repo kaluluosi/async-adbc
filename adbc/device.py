@@ -4,7 +4,7 @@ import typing
 from adbc.protocol import create_connection
 
 if typing.TYPE_CHECKING:
-    from adbc.adbclient import ADBClient, ForwardRule
+    from adbc.adbclient import ADBClient, ProxyRule
 
 
 class Status(enum.Enum):
@@ -38,6 +38,3 @@ class Device:
     async def shell_reader(self, cmd: str) -> StreamReader:
         res = await self.request("shell", cmd)
         return res.reader
-
-    async def reverse_list(self) -> list[ForwardRule]:
-        pass

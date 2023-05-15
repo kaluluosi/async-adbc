@@ -22,7 +22,7 @@ class DeviceStatusNotification:
 
 @dataclass_json
 @dataclass
-class ForwardRule:
+class ProxyRule:
     serialno: str
     local: str
     remote: str
@@ -37,10 +37,10 @@ class ADBClient:
     请求参数host-prefix 有 host、host-serial、host-usb、host-local三个值
     1. host : 当devices只有一个设备的时候，将指令默认发给这个设备，如果存在多个设备，会失败
     2. host-serial： 将指令定向发送到序号serial的设备， 等同于 `adb -s <设备序号>`
-    3. host-usb: 只有一台设备以usb连接时，将指令默认发给这个usb设备， adb没有对应的用法
-    4. host-local：只有一台模拟器设备连接的时候，将指令默认发给这个模拟器设备，adb没有对应的用法
+    3. host-usb: 只有一台设备以usb连接时，将指令默认发给这个usb设备， adb命令中没有对应的用法
+    4. host-local：只有一台模拟器设备连接的时候，将指令默认发给这个模拟器设备，adb命令没有对应的用法
 
-    1其实同时包含了3、4的规则，为的就是敲adb指令的时候能够有个默认设备去执行指令。
+    1其实同时包含了3、4的规则，为的就是敲adb指令的时候能够有个默认设备去执行指令，例如`adb shell`，调用默认设备的shell命令。
     我们的ADBClient就不需要这么麻烦，我们只区分hsot和serial，host是用于设备无关服务，serial则是用于设备有关服务。
 
     """
@@ -158,18 +158,42 @@ class ADBClient:
         res = await res.text()
         lines = res.splitlines()
 
-        rules: list[ForwardRule] = []
+        rules: list[ProxyRule] = []
 
         for line in lines:
             if line:
                 serialno, local, remote = line.split()
-                rules.append(ForwardRule(serialno, local, remote))
+                rules.append(ProxyRule(serialno, local, remote))
 
         return rules
 
     async def forward(
         self, serialno: str, local: str, remote: str, norebind: bool = False
     ):
+        """端口映射/正向代理
+        等同 adb forward
+
+        Asks the ADB server to forward local connections from <local>
+        to the <remote> address on a given device.
+        There, <host-prefix> can be one of the
+        host-serial/host-usb/host-local/host prefixes as described previously
+        and indicates which device/emulator to target.
+
+        the format of <local> is one of:
+        tcp:<port>      -> TCP connection on localhost:<port>
+        local:<path>    -> Unix local domain socket on <path>
+        the format of <remote> is one of:
+        tcp:<port>      -> TCP localhost:<port> on device
+        local:<path>    -> Unix local domain socket on device
+        jdwp:<pid>      -> JDWP thread on VM process <pid>
+        vsock:<CID>:<port> -> vsock on the given CID and port
+
+        Args:
+            serialno (str): 设备序号
+            local (str): 本地端口 有多种格式
+            remote (str): 远程端口 有多种格式
+            norebind (bool, optional): 不重复绑定. Defaults to False.
+        """
         if norebind:
             await self.request(
                 "host-serial", serialno, "forward", "norebind", f"{local};{remote}"
@@ -178,7 +202,38 @@ class ADBClient:
             await self.request("host-serial", serialno, "forward", f"{local};{remote}")
 
     async def forward_remove(self, serialno: str, local: str):
+        """移除端口映射
+        等同 adb forward --remove
+
+        Args:
+            serialno (str): 设备序号
+            local (str): 本地端口
+        """
         await self.request("host-serial", serialno, "killforward", local)
 
     async def forward_remove_all(self, serialno: str):
+        """移除所有端口映射
+        等同 adb forward --remove-all
+
+        Args:
+            serialno (str): 设备序号
+        """
         await self.request("host-serial", serialno, "killforward-all")
+
+    async def reverse_list(self, serialno: str) -> list[ProxyRule]:
+        res = await self.request("host", "reverse:list-forward")
+        res = await res.text()
+        lines = res.splitlines()
+
+        rules: list[ProxyRule] = []
+
+        for line in lines:
+            if line:
+                serialno, remote, local = line.split()
+                lines.append(ProxyRule(serialno, local, remote))
+        return rules
+
+    async def reverse_forward(
+        self, serialno: str, remote: str, local: str, norebind: bool
+    ):
+        pass
