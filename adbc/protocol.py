@@ -42,12 +42,22 @@ def pack(msg: str) -> bytes:
 
 async def create_connection(host: str = "127.0.0.1", port: int = 5037):
     conn = await asyncio.open_connection(host, port)
-    return Conenction(*conn)
+    return Connection(*conn)
 
 
 class Response:
     def __init__(self, reader: StreamReader) -> None:
-        self.reader = reader
+        self._reader = reader
+
+    @property
+    def reader(self):
+        """一些命令没有响应但是有文本输出，需要直接用reader读取。
+        比如：LocalService的Shell命令
+
+        Returns:
+            _type_: _description_
+        """
+        return self._reader
 
     async def text(self) -> str:
         """获取响应结果
@@ -84,7 +94,7 @@ class Response:
             yield recv.decode()
 
 
-class Conenction:
+class Connection:
     def __init__(self, reader: StreamReader, writer: StreamWriter) -> None:
         self.reader = reader
         self.writer = writer
@@ -100,22 +110,22 @@ class Conenction:
         """
 
         msg = ":".join([str(arg) for arg in args])
+        print("req:", msg)
         data = pack(msg)
         self.writer.write(data)
         await self.writer.drain()
         await self._check_status()
         return Response(self.reader)
 
-    async def message(self, MSG: str, *args):
+    async def message(self, MSG: str, length: int | None = None, data: bytes = b""):
         """底层message协议请求接口，用于发送OKAY、SEND等文件传输协议
 
         Args:
             MSG (str): OKAY、SEND等
         """
 
-        args = ",".join(args).encode()
-        length = len(args)
-        data = MSG.encode() + struct.pack("<I", length) + args
+        length = len(data) if length is None else length
+        data = MSG.encode() + struct.pack("<I", length) + data
         self.writer.write(data)
         await self.writer.drain()
 
@@ -131,7 +141,7 @@ class Conenction:
 
     async def transport_mode(self, serialno: str):
         """
-        转发模式，调用后，connection直接把请求转发写入到设备上
+        转发模式，调用后，connection直接把请求转发到设备adbd进程上
         """
         cmd = f"host:transport:{serialno}"
         await self.request(cmd)

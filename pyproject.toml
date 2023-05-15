@@ -13,6 +13,12 @@ dataclasses-json = "^0.5.7"
 [tool.poetry.group.dev.dependencies]
 black = "^23.3.0"
 
+
+[[tool.poetry.source]]
+name = "tsinghua"
+url = "https://pypi.tuna.tsinghua.edu.cn/simple/"
+default = true
+
 [build-system]
 requires = ["poetry-core"]
 build-backend = "poetry.core.masonry.api"

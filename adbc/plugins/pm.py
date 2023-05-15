@@ -11,7 +11,12 @@ class ClearError(Exception):
         super().__init__(f"{package_name}无法被清除 - [{msg}]")
 
 
-class PackageManagerPlugin(Plugin):
+class PMPlugin(Plugin):
+    """
+    PackageManager插件
+    封装了 pm命令
+    
+    """
     INSTALL_RESULT_PATTERN = r"(Success|Failure|Error)\s?(.*)"
     UNINSTALL_RESULT_PATTERN = r"(Success|Failure.*|.*Unknown package:.*)"
     CLEAR_RESULT_PATTERN = r"(Success|Failed)"
