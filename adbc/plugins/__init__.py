@@ -11,3 +11,6 @@ class Plugin:
 
 from .pm import PMPlugin
 from .prop import PropPlugin
+from .cpu import CPUPlugin
+from .gpu import GPUPlugin
+from .utils import UtilsPlugin

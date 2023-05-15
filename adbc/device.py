@@ -5,8 +5,7 @@ from adbc.plugins.utils import UtilsPlugin
 from adbc.protocol import Connection
 from adbc.service.local import LocalService
 
-from adbc.plugins import PMPlugin
-from adbc.plugins import PropPlugin
+from adbc.plugins import PMPlugin, PropPlugin, CPUPlugin, GPUPlugin, UtilsPlugin
 
 if typing.TYPE_CHECKING:
     from adbc.adbclient import ADBClient
@@ -25,6 +24,9 @@ class Device(LocalService):
 
         self.pm = PMPlugin(self)
         self.prop = PropPlugin(self)
+        self.utils = UtilsPlugin(self)
+        self.cpu = CPUPlugin(self)
+        self.gpu = GPUPlugin(self)
         self.utils = UtilsPlugin(self)
 
     async def create_connection(self) -> Connection:
