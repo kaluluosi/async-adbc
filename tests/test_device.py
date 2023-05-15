@@ -2,10 +2,10 @@ import os
 import unittest
 import tempfile
 from adbc.adbclient import ADBClient
-from adbc.device import Device
+from tests.testcase import DeviceTestCase
 
 
-class TestDevice(unittest.IsolatedAsyncioTestCase):
+class TestDevice(DeviceTestCase):
     def setUp(self) -> None:
         self.adbc = ADBClient()
 
@@ -53,7 +53,7 @@ class TestDevice(unittest.IsolatedAsyncioTestCase):
     async def test_push_pull(self):
         await self.device.push("tests/assets/push.txt", "/sdcard/push.txt")
 
-        ls = await self.device.shell("ls", "/sdcard")
+        ls = await self.device.shell("ls", "/sdcard/")
         self.assertTrue("push.txt" in ls)
 
         with tempfile.TemporaryDirectory() as dir:
@@ -67,6 +67,7 @@ class TestDevice(unittest.IsolatedAsyncioTestCase):
                 self.assertEqual("Test Push", txt)
 
     async def test_reverse(self):
+        """测完所有reverse的指令"""
         rules = await self.device.reverse_list()
 
         self.assertEqual(len(rules), 0)

@@ -1,9 +1,19 @@
-from .plugin import Plugin
+import os
+import re
+from typing import Any
+
+from adbc.service.local import ProgressCallback
+from . import Plugin
 
 
 class InstallError(Exception):
     def __init__(self, src: str, msg) -> None:
         super().__init__(f"{src} 安装失败 - [{msg}]")
+
+
+class UninstallError(Exception):
+    def __init__(self, *args: object) -> None:
+        super().__init__("卸载异常", *args)
 
 
 class ClearError(Exception):
@@ -15,13 +25,22 @@ class PMPlugin(Plugin):
     """
     PackageManager插件
     封装了 pm命令
-    
+
     """
+
     INSTALL_RESULT_PATTERN = r"(Success|Failure|Error)\s?(.*)"
     UNINSTALL_RESULT_PATTERN = r"(Success|Failure.*|.*Unknown package:.*)"
     CLEAR_RESULT_PATTERN = r"(Success|Failed)"
 
     async def list_packages(self) -> list[str]:
+        """列出安装的包
+
+        等同于： adb shell pm list packages
+
+        Returns:
+            list[str]: 包名列表
+        """
+
         result = await self._device.shell("pm list packages 2>/dev/null")
         result_pattern = r"^package:(.*?)\r?$"
 
@@ -33,9 +52,13 @@ class PMPlugin(Plugin):
 
         return packages
 
-    def install(self, path: str, args="rd"):
+    async def install(
+        self, path: str, args="rd", progesss_cb: ProgressCallback | None = None
+    ):
         """
         将路径path的apk文件推送并用pm install安装到手机里
+
+        等同于： adb install
 
         args参数说明：
 
@@ -56,53 +79,63 @@ class PMPlugin(Plugin):
 
         base_name = os.path.basename(path)
         dest = f"/data/local/tmp/{base_name}"
-        self.device.push(path, dest)
+        await self._device.push(path, dest, progress_cb=progesss_cb)
 
         try:
-            result = self.device.shell(f"pm install {args} {dest}")
-            match = re.search(self.INSTALL_RESULT_PATTERN, result)
+            res = await self._device.shell(f"pm install {args} {dest}")
+            match: re.Match = re.search(self.INSTALL_RESULT_PATTERN, res)
             if match and match.group(1) == "Success":
                 return True
             elif match:
                 groups = match.groups()
                 raise InstallError(path, groups)
             else:
-                raise InstallError(path, result)
+                raise InstallError(path, res)
 
         finally:
-            self.device.shell(f"rm -f {dest}")
+            await self._device.shell(f"rm -f {dest}")
 
-    def uninstall(self, package_name: str):
-        result = self.device.shell(f"pm uninstall {package_name}")
+    async def uninstall(self, package_name: str):
+        """卸载app
+
+        等同于：adb uninstall
+
+        Args:
+            package_name (str): 包名 com.xxx.xxx
+
+        Raises:
+            UninstallError: 卸载异常，失败会返回异常
+        """
+        result = await self._device.shell(f"pm uninstall {package_name}")
         match = re.search(self.UNINSTALL_RESULT_PATTERN, result)
 
         if match and match.group(1) == "Success":
             return True
         elif match:
-            logger.error(match.group(1))
-            return False
+            msg = match.group(1)
+            raise UninstallError(msg)
         else:
-            logger.error("卸载后没有返回任何信息")
-            return False
+            raise UninstallError("卸载后没有返回任何信息")
 
-    def is_installed(self, package_name: str):
-        """
-        检查某个包名的app是否已经安装
+    async def path(self, package_name: str) -> str:
+        res = await self._device.shell(f"pm path {package_name}")
+        if res and "package:" in res:
+            return res.split(":")[1]
+        else:
+            raise NameError(package_name, "不存在，可能没有安装")
 
-        Args:
-            self (_type_): _description_
-        """
-
-        result = self.device.shell(f"pm path {package_name}")
-
-        if "package:" in result:
+    async def is_installed(self, package_name: str) -> bool:
+        try:
+            await self.path(package_name)
             return True
-        else:
+        except NameError:
             return False
 
-    def clear(self, package_name: str) -> bool:
+    async def clear(self, package_name: str):
         """
         清除app的缓存
+
+        等同于： adb shell pm clear
 
         Args:
             package_name (str): 包名
@@ -114,24 +147,25 @@ class PMPlugin(Plugin):
             bool: 成功返回True
         """
 
-        result = self.device.shell(f"pm clear {package_name}")
+        res = await self._device.shell(f"pm clear {package_name}")
 
-        match = re.search(self.CLEAR_RESULT_PATTERN, result)
+        match = re.search(self.CLEAR_RESULT_PATTERN, res)
 
         if match is not None and match.group(1) == "Success":
-            return True
+            return
         else:
-            logger.error(result)
-            raise ClearError(package_name, result.strip())
+            raise ClearError(package_name, res.strip())
 
-    def list_features(self) -> dict[str, Any]:
+    async def list_features(self) -> dict[str, Any]:
         """
         列出安卓功能列表（features）
+
+        等同于： adb shell pm list features
 
         Returns:
             dict[str,str]:
         """
-        result = self.device.shell("pm list features 2>/dev/null")
+        result = await self._device.shell("pm list features 2>/dev/null")
 
         result_pattern = "^feature:(.*?)(?:=(.*?))?\r?$"
         features = {}

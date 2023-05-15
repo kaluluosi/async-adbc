@@ -1,14 +1,12 @@
-from typing import Any, Coroutine
 import unittest
 
+from typing import Any, Coroutine
+from tests.testcase import ADBClientTestCase, DeviceTestCase
 from adbc.adbclient import ADBClient, ADBClient, DeviceNotFoundError
 from adbc.device import Status
 
 
-class TestAsyncADBClient(unittest.IsolatedAsyncioTestCase):
-    def setUp(self) -> None:
-        self.adbc = ADBClient()
-
+class TestAsyncADBClient(ADBClientTestCase):
     async def test_version(self):
         version = await self.adbc.version()
         self.assertGreater(version, 10)
@@ -29,13 +27,10 @@ class TestAsyncADBClient(unittest.IsolatedAsyncioTestCase):
         devcie = await self.adbc.device(f"192.168.1.5:{addr[1]}")
         ret = await self.adbc.remote_disconnect(*addr)
         with self.assertRaises(DeviceNotFoundError):
-            devcie = await self.adbc.device(f"192.168.1.5:{addr[1]}")
+            await self.adbc.device(f"192.168.1.5:{addr[1]}")
 
 
-class TestForward(unittest.IsolatedAsyncioTestCase):
-    def setUp(self) -> None:
-        self.adbc = ADBClient()
-
+class TestForward(ADBClientTestCase):
     async def asyncSetUp(self) -> Coroutine[Any, Any, None]:
         await self.adbc.forward_remove_all()
 
@@ -70,11 +65,3 @@ class TestForward(unittest.IsolatedAsyncioTestCase):
 
         forward_list = await self.adbc.forward_list()
         self.assertEqual(len(forward_list), 0)
-
-
-class TestReverse(unittest.IsolatedAsyncioTestCase):
-    def setUp(self) -> None:
-        self.adbc = ADBClient()
-
-    async def asyncSetUp(self) -> Coroutine[Any, Any, None]:
-        await self.adbc.reversse_remove_all()
