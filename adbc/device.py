@@ -1,11 +1,23 @@
 import asyncio
 import enum
+import re
 import typing
 from adbc.plugins.utils import UtilsPlugin
 from adbc.protocol import Connection
 from adbc.service.local import LocalService
 
-from adbc.plugins import PMPlugin, PropPlugin, CPUPlugin, GPUPlugin, UtilsPlugin
+from adbc.plugins import (
+    PMPlugin,
+    PropPlugin,
+    CPUPlugin,
+    GPUPlugin,
+    BatteryPlugin,
+    FpsPlugin,
+    MemPlugin,
+    TempPlugin,
+    UtilsPlugin,
+    TrafficPlugin,
+)
 
 if typing.TYPE_CHECKING:
     from adbc.adbclient import ADBClient
@@ -24,10 +36,14 @@ class Device(LocalService):
 
         self.pm = PMPlugin(self)
         self.prop = PropPlugin(self)
-        self.utils = UtilsPlugin(self)
         self.cpu = CPUPlugin(self)
         self.gpu = GPUPlugin(self)
+        self.mem = MemPlugin(self)
+        self.fps = FpsPlugin(self)
+        self.battery = BatteryPlugin(self)
+        self.temp = TempPlugin(self)
         self.utils = UtilsPlugin(self)
+        self.traffic = TrafficPlugin(self)
 
     async def create_connection(self) -> Connection:
         conn = await self.adbc.create_connection()
@@ -54,3 +70,23 @@ class Device(LocalService):
             timeout -= 1
 
         raise TimeoutError("超时也没有重启完毕")
+
+    @property
+    async def properties(self) -> dict[str, str]:
+        """获取设备props
+
+        一些插件要用到所以挪到device里
+
+        Returns:
+            dict[str, str]: _description_
+        """
+        res = await self.shell("getprop")
+        result_pattern = "^\[([\s\S]*?)\]: \[([\s\S]*?)\]\r?$"  # type: ignore
+        lines = res.splitlines()
+        properties = {}
+        for line in lines:
+            m = re.match(result_pattern, line)
+            if m:
+                properties[m.group(1)] = m.group(2)
+
+        return properties

@@ -1,15 +1,27 @@
 import asyncio
-from dataclasses import field, dataclass
 import re
+from dataclasses import field, dataclass
+import typing
 from typing import Optional
 from dataclasses_json import dataclass_json
 
-from adbc.device import Device
 from . import Plugin
 
+if typing.TYPE_CHECKING:
+    from adbc.device import Device
 
 CPUStatMap = dict[int, "CPUStat"]
 CPUUsageMap = dict[int, "CPUUsage"]
+
+
+@dataclass
+@dataclass_json
+class CPUInfo:
+    platform: str
+    name: str
+    abi: str
+    core: int
+    freq: tuple[int, int]
 
 
 @dataclass
@@ -146,7 +158,7 @@ class ProcessCPUStat:
 
 
 class CPUPlugin(Plugin):
-    def __init__(self, device: Device) -> None:
+    def __init__(self, device: "Device") -> None:
         super().__init__(device)
         self._cpu_count: Optional[int] = None
         self._last_cpu_stat: Optional[CPUStatMap] = {}
@@ -373,3 +385,18 @@ class CPUPlugin(Plugin):
         except Exception:
             return "Unknow"
         return name
+
+    @property
+    async def info(self) -> CPUInfo:
+        props = await self._device.properties
+
+        platform = props.get("ro.board.platform", "Unknow")
+        cpu_name = await self.cpu_name
+        abi = props.get("ro.product.cpu.abi", "Unknow")
+        core = await self.cpu_count
+        freqs = await self.cpu_freqs
+        freq = freqs[0]
+        freqs = freq
+
+        cpu_info = CPUInfo(platform, cpu_name, abi, core, freq)
+        return cpu_info
