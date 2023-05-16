@@ -110,7 +110,6 @@ class Connection:
         """
 
         msg = ":".join([str(arg) for arg in args])
-        print("req:", msg)
         data = pack(msg)
         self.writer.write(data)
         await self.writer.drain()
