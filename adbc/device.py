@@ -2,7 +2,6 @@ import asyncio
 import enum
 import re
 import typing
-from adbc.plugins.utils import UtilsPlugin
 from adbc.protocol import Connection
 from adbc.service.local import LocalService
 
@@ -17,6 +16,7 @@ from adbc.plugins import (
     TempPlugin,
     UtilsPlugin,
     TrafficPlugin,
+    ForwardPlugin,
 )
 
 if typing.TYPE_CHECKING:
@@ -44,6 +44,7 @@ class Device(LocalService):
         self.temp = TempPlugin(self)
         self.utils = UtilsPlugin(self)
         self.traffic = TrafficPlugin(self)
+        self.forward = ForwardPlugin(self)
 
     async def create_connection(self) -> Connection:
         conn = await self.adbc.create_connection()

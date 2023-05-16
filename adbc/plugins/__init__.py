@@ -20,3 +20,4 @@ from .battery import BatteryPlugin
 from .am import ActivityManagerPlugin
 from .temp import TempPlugin
 from .traffic import TrafficPlugin
+from .forward import ForwardPlugin
