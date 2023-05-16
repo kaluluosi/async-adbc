@@ -17,6 +17,7 @@ from adbc.plugins import (
     UtilsPlugin,
     TrafficPlugin,
     ForwardPlugin,
+    ActivityManagerPlugin,
 )
 
 if typing.TYPE_CHECKING:
@@ -44,6 +45,7 @@ class Device(LocalService):
         self.temp = TempPlugin(self)
         self.utils = UtilsPlugin(self)
         self.traffic = TrafficPlugin(self)
+        self.am = ActivityManagerPlugin(self)
         self.forward = ForwardPlugin(self)
 
     async def create_connection(self) -> Connection:
@@ -63,9 +65,12 @@ class Device(LocalService):
         :param timedelta: second
         """
         while timeout:
-            res = await self.shell("echo", "hello")
-            if res == "hello":
-                return True
+            try:
+                res = await self.shell("echo", "hello")
+                if res == "hello":
+                    return True
+            except:
+                pass
 
             await asyncio.sleep(wait_interval)
             timeout -= 1

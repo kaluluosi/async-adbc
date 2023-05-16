@@ -1,7 +1,10 @@
 from dataclasses import dataclass, field
+
+from dataclasses_json import dataclass_json
 from . import Plugin
 
 
+@dataclass_json
 @dataclass
 class BatteryStat:
     ATTR_MAP = {
@@ -42,7 +45,7 @@ class BatteryPlugin(Plugin):
 
     async def stat(self) -> BatteryStat:
         res = await self._device.shell("dumpsys battery")
-        lines = res.split("\n")
+        lines = res.splitlines()
         start_line = lines.index(self.SESSION)
 
         data = {}
@@ -51,9 +54,11 @@ class BatteryPlugin(Plugin):
                 continue
 
             attr, value = line.strip().split(":")
+            attr = attr.strip()
+            value = value.strip()
             if value in ["true", "false"]:
                 value = bool(value)
-            if value.isdigit():
+            elif value.isdigit():
                 value = int(value)
 
             attr = BatteryStat.ATTR_MAP.get(attr)

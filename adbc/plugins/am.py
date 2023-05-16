@@ -9,4 +9,6 @@ class ActivityManagerPlugin(Plugin):
             package_name (str): 包名
             active_name (str, optional): 目标Activity. Defaults to "MainActivity".
         """
-        self._device.shell(f"am start -n {package_name}/{package_name}.{active_name}")
+        await self._device.shell(
+            f"am start -n {package_name}/{package_name}.{active_name}"
+        )

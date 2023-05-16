@@ -117,7 +117,6 @@ class LocalService(Service):
         """
 
         res = await self.request("reboot", option)
-        res = await res.reader.read()
 
     async def remount(self):
         """

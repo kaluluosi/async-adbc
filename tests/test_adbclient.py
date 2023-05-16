@@ -50,18 +50,3 @@ class TestForward(ADBClientTestCase):
         await self.adbc.forward_remove(device.serialno, rule)
         forward_list = await self.adbc.forward_list()
         self.assertEqual(len(forward_list), 0)
-
-    async def test_forward_remove(self):
-        local = "tcp:2222"
-        remote = "tcp:7555"
-        device = await self.adbc.device("127.0.0.1:7555")
-        await self.adbc.forward(device.serialno, local, remote)
-        forward_list = await self.adbc.forward_list()
-
-        self.assertEqual(len(forward_list), 1)
-        self.assertEqual(forward_list[0].local, local)
-
-        await self.adbc.forward_remove(device.serialno, forward_list[0])
-
-        forward_list = await self.adbc.forward_list()
-        self.assertEqual(len(forward_list), 0)

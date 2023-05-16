@@ -8,6 +8,7 @@ class ADBClientTestCase(unittest.IsolatedAsyncioTestCase):
         self.adbc = ADBClient()
 
 
-class DeviceTestCase(ADBClientTestCase):
+class DeviceTestCase(unittest.IsolatedAsyncioTestCase):
     async def asyncSetUp(self):
+        self.adbc = ADBClient()
         self.device = await self.adbc.device()

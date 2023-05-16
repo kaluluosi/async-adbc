@@ -1,8 +1,3 @@
-import os
-import unittest
-import tempfile
-from adbc.adbclient import ADBClient
-from adbc.device import Device
 from adbc.plugins.pm import ClearError, UninstallError
 from tests.testcase import DeviceTestCase
 

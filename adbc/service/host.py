@@ -1,6 +1,6 @@
 import abc
 from dataclasses import dataclass
-from typing import Any, AsyncGenerator
+from typing import Any, AsyncGenerator, Union
 
 from dataclasses_json import dataclass_json
 from adbc.service import Service
@@ -242,7 +242,7 @@ class HostService(Service):
                 self.HOST_SERIAL, serialno, "forward", f"{local};{remote}"
             )
 
-    async def forward_remove(self, serialno: str, local: str | ForwardRule):
+    async def forward_remove(self, serialno: str, local: Union[str, ForwardRule]):
         """移除端口映射
         等同: adb forward --remove
 
