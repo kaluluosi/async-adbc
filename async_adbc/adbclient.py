@@ -1,8 +1,4 @@
-import asyncio
-import functools
-from types import MethodType
-from typing import Any, AsyncGenerator, Coroutine
-from async_adbc.device import Device, Status
+from async_adbc.device import Status
 from async_adbc.protocol import Connection, create_connection
 from dataclasses import dataclass
 from dataclasses_json import dataclass_json
