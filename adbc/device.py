@@ -98,3 +98,12 @@ class Device(LocalService):
                 properties[m.group(1)] = m.group(2)
 
         return properties
+
+    async def get_pid_by_pkgname(self, package_name: str) -> int:
+        result = await self.shell(f"ps| grep -i {package_name}")
+
+        if result:
+            return int(result.split()[1])
+
+        else:
+            raise ValueError(f"{package_name} 应用没有运行")

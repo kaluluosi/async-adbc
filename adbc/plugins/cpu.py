@@ -14,8 +14,8 @@ CPUStatMap = dict[int, "CPUStat"]
 CPUUsageMap = dict[int, "CPUUsage"]
 
 
-@dataclass
 @dataclass_json
+@dataclass
 class CPUInfo:
     platform: str
     name: str
@@ -24,23 +24,23 @@ class CPUInfo:
     freq: tuple[int, int]
 
 
-@dataclass
 @dataclass_json
+@dataclass
 class CPUUsage:
     usage: float = field(default=0.0)
     normalized: float = field(default=0.0)
 
 
-@dataclass
 @dataclass_json
+@dataclass
 class CPUFreq:
     min: int
     cur: int
     max: int
 
 
-@dataclass
 @dataclass_json
+@dataclass
 class CPUStat:
     def __init__(
         self,
@@ -160,13 +160,12 @@ class ProcessCPUStat:
 class CPUPlugin(Plugin):
     def __init__(self, device: "Device") -> None:
         super().__init__(device)
-        self._cpu_count: Optional[int] = None
         self._last_cpu_stat: Optional[CPUStatMap] = {}
         self._last_total_cpu_stat: Optional[CPUStat] = CPUStat()
         self._last_pid_cpu_stat: Optional[ProcessCPUStat] = ProcessCPUStat()
 
     @property
-    async def cpu_count(self) -> int:
+    async def count(self) -> int:
         """
         获取cpu核心数
 
@@ -175,14 +174,13 @@ class CPUPlugin(Plugin):
         Returns:
             int: 核心数
         """
-        if self._cpu_count is None:
-            result = await self._device.shell("ls /sys/devices/system/cpu")
-            match = re.findall(r"cpu[0-9+]", result)
-            self._cpu_count = len(match)
-        return self._cpu_count
+        result = await self._device.shell("ls /sys/devices/system/cpu")
+        match = re.findall(r"cpu[0-9+]", result)
+        _cpu_count = len(match)
+        return _cpu_count
 
     @property
-    async def cpu_freqs(self) -> dict[int, CPUFreq]:
+    async def freqs(self) -> dict[int, CPUFreq]:
         """
         获取所有cpu的 最小最大和当前频率
 
@@ -191,7 +189,7 @@ class CPUPlugin(Plugin):
         Returns:
             dict[int,CPUFreq]: key是CPU编号，value是CPUFreq
         """
-        count = await self.cpu_count
+        count = await self.count
         freq = {}
         for index in range(count):
             cmd_root = f"cat /sys/devices/system/cpu/cpu{index}/cpufreq"
@@ -201,11 +199,7 @@ class CPUPlugin(Plugin):
 
             min, cur, max = await asyncio.gather(min, cur, max)
 
-            freq[index] = {
-                "min": min,
-                "max": max,
-                "cur": cur,
-            }
+            freq[index] = CPUFreq(int(min), int(cur), int(max))
 
         return freq
 
@@ -220,10 +214,10 @@ class CPUPlugin(Plugin):
         Returns:
             float: 因子
         """
-        cpu_freqs = await self.cpu_freqs
+        cpu_freqs = await self.freqs
 
         # 合计所有CPU最大频率
-        total_max_freq = sum([v["max"] for _, v in cpu_freqs.items()])
+        total_max_freq = sum([v.max for _, v in cpu_freqs.items()])
 
         # 找出所有在在线的CPU
         online_cmd = "cat /sys/devices/system/cpu/online"
@@ -237,7 +231,7 @@ class CPUPlugin(Plugin):
         cur_freq_sum = 0
         for p in phases:
             for i in range(p[0], p[1] + 1):
-                cur_freq_sum += cpu_freqs[i]["cur"]
+                cur_freq_sum += cpu_freqs[i].cur
 
         return cur_freq_sum / total_max_freq
 
@@ -266,11 +260,14 @@ class CPUPlugin(Plugin):
         """
         获取每个核心cpu使用率
 
+        获取的是两次采样间隔的cpu使用率，第一获取到的永远是0，你需要再调用一次才能获取到使用率。
+
         Returns:
             CPUUsageMap: _description_
         """
         normalize_factor = await self.normalize_factor
-        cpu_usage = {i: CPUUsage() for i in range(self.cpu_count)}
+        cpu_count = await self.count
+        cpu_usage = {i: CPUUsage() for i in range(cpu_count)}
         if not self._last_cpu_stat:
             self._last_cpu_stat = await self.cpu_stats
         else:
@@ -312,6 +309,7 @@ class CPUPlugin(Plugin):
     async def total_cpu_usage(self) -> CPUUsage:
         """
         获取总cpu占用率
+         获取的是两次采样间隔的cpu使用率，第一获取到的永远是0，你需要再调用一次才能获取到使用率。
 
         Args:
             normalized (bool, optional): 标准化占有率. Defaults to False.
@@ -393,10 +391,9 @@ class CPUPlugin(Plugin):
         platform = props.get("ro.board.platform", "Unknow")
         cpu_name = await self.cpu_name
         abi = props.get("ro.product.cpu.abi", "Unknow")
-        core = await self.cpu_count
-        freqs = await self.cpu_freqs
+        core = await self.count
+        freqs = await self.freqs
         freq = freqs[0]
-        freqs = freq
 
         cpu_info = CPUInfo(platform, cpu_name, abi, core, freq)
         return cpu_info
