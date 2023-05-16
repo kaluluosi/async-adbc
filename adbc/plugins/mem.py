@@ -5,12 +5,14 @@ from dataclasses_json import dataclass_json
 from . import Plugin
 
 
+@dataclass_json
 @dataclass
 class MemInfo:
     mem_total: int  # 内存大小
     swap_total: int  # 交换页大小
 
 
+@dataclass_json
 @dataclass
 class MemStat:
     pss: int = field(default=0)
@@ -28,6 +30,8 @@ class MemPlugin(Plugin):
         """
         获取内存信息
 
+        单位是 byte
+
         Returns:
             MemInfo:
         """
@@ -43,9 +47,11 @@ class MemPlugin(Plugin):
 
         return MemInfo(int(mem_total), int(swap_total))
 
-    async def get_memstat(self, package_name: str) -> MemStat:
+    async def stat(self, package_name: str) -> MemStat:
         """
         获取app的内存性能
+
+        单位是 byte
 
         _extended_summary_
 

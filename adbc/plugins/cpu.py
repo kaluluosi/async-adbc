@@ -186,7 +186,7 @@ class CPUPlugin(Plugin):
         """
         获取所有cpu的 最小最大和当前频率
 
-        单位是MHz
+        单位是Hz
 
         Returns:
             dict[int,CPUFreq]: key是CPU编号，value是CPUFreq
@@ -202,9 +202,9 @@ class CPUPlugin(Plugin):
             min, cur, max = await asyncio.gather(min, cur, max)
 
             freq[index] = {
-                "min": int(min / 1024),
-                "max": int(max / 1024),
-                "cur": int(cur / 1024),
+                "min": min,
+                "max": max,
+                "cur": cur,
             }
 
         return freq
