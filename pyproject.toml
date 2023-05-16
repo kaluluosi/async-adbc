@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "adbc"
-version = "0.1.1"
+version = "1.0.0"
 description = ""
 authors = ["kaluluosi <kaluluosi@gmail.com>"]
 readme = "README.md"
