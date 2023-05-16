@@ -1,4 +1,4 @@
-from adbc.plugins.fps import FpsStat, SurfaceNotFoundError
+from async_adbc.plugins.fps import FpsStat, SurfaceNotFoundError
 from tests.testcase import DeviceTestCase
 
 ARM_APK = r"tests\assets\app-armeabi-v7a.apk"

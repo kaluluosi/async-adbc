@@ -1,5 +1,5 @@
 import unittest
-from adbc.protocol import create_connection
+from async_adbc.protocol import create_connection
 
 
 class ProtocalTest(unittest.IsolatedAsyncioTestCase):

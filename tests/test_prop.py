@@ -1,7 +1,7 @@
 import os
 import unittest
-from adbc.adbclient import ADBClient
-from adbc.device import Device
+from async_adbc.adbclient import ADBClient
+from async_adbc.device import Device
 from tests.testcase import DeviceTestCase
 
 

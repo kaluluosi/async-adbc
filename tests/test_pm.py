@@ -1,4 +1,4 @@
-from adbc.plugins.pm import ClearError, UninstallError
+from async_adbc.plugins.pm import ClearError, UninstallError
 from tests.testcase import DeviceTestCase
 
 ARM_APK = r"tests\assets\app-armeabi-v7a.apk"

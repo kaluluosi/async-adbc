@@ -1,4 +1,4 @@
-from adbc.plugins.mem import MemStat
+from async_adbc.plugins.mem import MemStat
 from tests.testcase import DeviceTestCase
 
 ARM_APK = r"tests\assets\app-armeabi-v7a.apk"

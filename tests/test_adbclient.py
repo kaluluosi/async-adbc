@@ -2,8 +2,8 @@ import unittest
 
 from typing import Any, Coroutine
 from tests.testcase import ADBClientTestCase, DeviceTestCase
-from adbc.adbclient import ADBClient, ADBClient, DeviceNotFoundError
-from adbc.device import Status
+from async_adbc.adbclient import ADBClient, ADBClient, DeviceNotFoundError
+from async_adbc.device import Status
 
 
 class TestAsyncADBClient(ADBClientTestCase):
