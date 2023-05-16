@@ -2,12 +2,12 @@ import asyncio
 import functools
 from types import MethodType
 from typing import Any, AsyncGenerator, Coroutine
-from adbc.device import Device, Status
-from adbc.protocol import Connection, create_connection
+from async_adbc.device import Device, Status
+from async_adbc.protocol import Connection, create_connection
 from dataclasses import dataclass
 from dataclasses_json import dataclass_json
 
-from adbc.service.host import HostService
+from async_adbc.service.host import HostService
 
 
 DEFAULT_HOST = "127.0.0.1"

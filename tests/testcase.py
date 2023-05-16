@@ -1,6 +1,6 @@
 import unittest
 
-from adbc.adbclient import ADBClient
+from async_adbc.adbclient import ADBClient
 
 
 class ADBClientTestCase(unittest.IsolatedAsyncioTestCase):

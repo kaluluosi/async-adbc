@@ -15,7 +15,7 @@ device是跟adbd守护进程的客户端，也就是LOCAL SERVICES的封装。
 
 import abc
 
-from adbc.protocol import Connection
+from async_adbc.protocol import Connection
 
 
 class Service(abc.ABC):

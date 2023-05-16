@@ -6,8 +6,8 @@ import struct
 from typing import Callable, Optional
 
 from dataclasses_json import dataclass_json
-from adbc.protocol import DATA, DONE, FAIL, RECV, SEND, Connection
-from adbc.service import Service
+from async_adbc.protocol import DATA, DONE, FAIL, RECV, SEND, Connection
+from async_adbc.service import Service
 
 ProgressCallback = Callable[[str, int, int], None]
 

@@ -3,9 +3,9 @@ from dataclasses import dataclass
 from typing import Any, AsyncGenerator, Union
 
 from dataclasses_json import dataclass_json
-from adbc.service import Service
-from adbc.device import Device, Status
-from adbc.protocol import Connection
+from async_adbc.service import Service
+from async_adbc.device import Device, Status
+from async_adbc.protocol import Connection
 
 
 class DeviceNotFoundError(Exception):

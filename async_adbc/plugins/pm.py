@@ -2,7 +2,7 @@ import os
 import re
 from typing import Any
 
-from adbc.service.local import ProgressCallback
+from async_adbc.service.local import ProgressCallback
 from . import Plugin
 
 

@@ -2,10 +2,10 @@ import asyncio
 import enum
 import re
 import typing
-from adbc.protocol import Connection
-from adbc.service.local import LocalService
+from async_adbc.protocol import Connection
+from async_adbc.service.local import LocalService
 
-from adbc.plugins import (
+from async_adbc.plugins import (
     PMPlugin,
     PropPlugin,
     CPUPlugin,
@@ -22,7 +22,7 @@ from adbc.plugins import (
 )
 
 if typing.TYPE_CHECKING:
-    from adbc.adbclient import ADBClient
+    from async_adbc.adbclient import ADBClient
 
 
 class Status(enum.Enum):

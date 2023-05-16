@@ -2,7 +2,7 @@ import typing
 from . import Plugin
 
 if typing.TYPE_CHECKING:
-    from adbc.adbclient import ForwardRule
+    from async_adbc.adbclient import ForwardRule
 
 
 class ForwardPlugin(Plugin):

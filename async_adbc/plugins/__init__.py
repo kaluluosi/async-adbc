@@ -1,7 +1,7 @@
 import typing
 
 if typing.TYPE_CHECKING:
-    from adbc.device import Device
+    from async_adbc.device import Device
 
 
 class Plugin:

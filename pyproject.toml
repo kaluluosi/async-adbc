@@ -1,5 +1,5 @@
 [tool.poetry]
-name = "adbc"
+name = "async-adbc"
 version = "1.0.0"
 description = ""
 authors = ["kaluluosi <kaluluosi@gmail.com>"]

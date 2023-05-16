@@ -5,7 +5,7 @@ from dataclasses import dataclass
 from dataclasses_json import dataclass_json
 
 if typing.TYPE_CHECKING:
-    from adbc.device import Device
+    from async_adbc.device import Device
 
 
 @dataclass_json
