@@ -21,3 +21,4 @@ from .am import ActivityManagerPlugin
 from .temp import TempPlugin
 from .traffic import TrafficPlugin
 from .forward import ForwardPlugin
+from .logcat import LogcatPlugin

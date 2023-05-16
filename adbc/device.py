@@ -18,6 +18,7 @@ from adbc.plugins import (
     TrafficPlugin,
     ForwardPlugin,
     ActivityManagerPlugin,
+    LogcatPlugin,
 )
 
 if typing.TYPE_CHECKING:
@@ -47,6 +48,7 @@ class Device(LocalService):
         self.traffic = TrafficPlugin(self)
         self.am = ActivityManagerPlugin(self)
         self.forward = ForwardPlugin(self)
+        self.logcat = LogcatPlugin(self)
 
     async def create_connection(self) -> Connection:
         conn = await self.adbc.create_connection()
