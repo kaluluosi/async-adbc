@@ -1,9 +1,7 @@
-from dataclasses import dataclass
-from typing import Optional
-
-from dataclasses_json import dataclass_json
-
 from . import Plugin
+from typing import Optional
+from dataclasses import dataclass
+from dataclasses_json import dataclass_json
 
 
 class SurfaceNotFoundError(Exception):
