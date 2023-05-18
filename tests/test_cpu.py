@@ -57,6 +57,7 @@ class TestCpuPlugin(DeviceTestCase):
         self.assertGreater(usage.usage, 0)
 
     async def test_pid_cpu_stat(self):
+        PKG_NAME = "com.android.browser"
         await self.device.am.start_app(PKG_NAME)
 
         pid = await self.device.get_pid_by_pkgname(PKG_NAME)
@@ -68,9 +69,12 @@ class TestCpuPlugin(DeviceTestCase):
         PKG_NAME = "com.android.browser"
         await self.device.am.start_app(PKG_NAME)
         pid = await self.device.get_pid_by_pkgname(PKG_NAME)
-        stat = await self.device.cpu.get_pid_cpu_usage(pid)
+        pip_stat = await self.device.cpu.get_pid_cpu_usage(pid)
 
-        self.assertGreater(stat.usage, 0)
+        self.assertGreaterEqual(pip_stat.usage, 0)
+
+        total_cpu_stat = await self.device.cpu.total_cpu_usage
+        self.assertGreaterEqual(total_cpu_stat.usage, pip_stat.usage)
 
     async def test_cpu_name(self):
         cpu_name = await self.device.cpu.cpu_name

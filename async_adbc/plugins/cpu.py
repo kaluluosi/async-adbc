@@ -42,29 +42,16 @@ class CPUFreq:
 @dataclass_json
 @dataclass
 class CPUStat:
-    def __init__(
-        self,
-        user: float = 0,
-        nice: float = 0,
-        system: float = 0,
-        idle: float = 0,
-        iowait: float = 0,
-        irq: float = 0,
-        softirq: float = 0,
-        stealstolen: float = 0,
-        guest: float = 0,
-        guest_nice: float = 0,
-    ):
-        self.user = user
-        self.nice = nice
-        self.system = system
-        self.idle = idle
-        self.iowait = iowait
-        self.irq = irq
-        self.softirq = softirq
-        self.stealstolen = stealstolen
-        self.guest = guest
-        self.guest_nice = guest_nice
+    user: float = 0
+    nice: float = 0
+    system: float = 0
+    idle: float = 0
+    iowait: float = 0
+    irq: float = 0
+    softirq: float = 0
+    stealstolen: float = 0
+    guest: float = 0
+    guest_nice: float = 0
 
     @property
     def total(self):
@@ -91,8 +78,8 @@ class CPUStat:
         """
         return (self.user + self.system) / self.total * 100
 
-    def __add__(self, other):
-        summary = CPUStat(0, 0, 0, 0, 0, 0, 0, 0, 0, 0)
+    def __add__(self, other: "CPUStat"):
+        summary = CPUStat()
 
         summary.user = self.user + other.user
         summary.nice = self.nice + other.nice
@@ -107,8 +94,8 @@ class CPUStat:
 
         return summary
 
-    def __sub__(self, other):
-        result = CPUStat(0, 0, 0, 0, 0, 0, 0, 0, 0, 0)
+    def __sub__(self, other: "CPUStat"):
+        result = CPUStat()
 
         result.user = self.user - other.user
         result.nice = self.nice - other.nice
@@ -131,21 +118,26 @@ class CPUStat:
 @dataclass_json
 @dataclass
 class ProcessCPUStat:
-    def __init__(self, name: str = "", utime: int = 0, stime: int = 0):
-        self.name = name
-        self.utime = utime
-        self.stime = stime
+    name: str = ""
+    utime: int = 0
+    stime: int = 0
+    cutime: int = 0
+    cstime: int = 0
 
-    def __add__(self, other):
-        summary = ProcessCPUStat(self.name, 0, 0)
+    def __add__(self, other: "ProcessCPUStat"):
+        summary = ProcessCPUStat(self.name)
         summary.utime = self.utime + other.utime
         summary.stime = self.stime + other.stime
+        summary.cutime = self.cutime + other.cutime
+        summary.cstime = self.cstime + other.cstime
         return summary
 
-    def __sub__(self, other):
-        result = ProcessCPUStat(self.name, 0, 0)
+    def __sub__(self, other: "ProcessCPUStat"):
+        result = ProcessCPUStat(self.name)
         result.utime = self.utime - other.utime
         result.stime = self.stime - other.stime
+        result.cutime = self.cutime - other.cutime
+        result.cstime = self.cstime - other.cstime
         return result
 
     def __str__(self):
@@ -154,7 +146,7 @@ class ProcessCPUStat:
 
     @property
     def total(self) -> float:
-        return self.utime + self.stime
+        return self.utime + self.stime + self.cutime + self.stime
 
 
 class CPUPlugin(Plugin):
@@ -341,21 +333,22 @@ class CPUPlugin(Plugin):
         result = await self._device.shell(f"cat /proc/{pid}/stat")
 
         if "No such file or directory" in result:
-            return ProcessCPUStat("", 0, 0)
+            return ProcessCPUStat()
         else:
             items = result.split()
-            return ProcessCPUStat(items[1], int(items[13]), int(items[14]))
+            return ProcessCPUStat(
+                items[1], int(items[13]), int(items[14], int(items[15], int(items[16])))
+            )
 
     async def get_pid_cpu_usage(self, pid: int) -> CPUUsage:
         normalize_factor = await self.normalize_factor
-        
+
         last_pid_cpu_stat = await self.get_pid_cpu_stat(pid)
         last_total_cpu_stat = await self.total_cpu_stat
         await asyncio.sleep(1)
         pid_stat = await self.get_pid_cpu_stat(pid)
-        pid_diff = pid_stat - last_pid_cpu_stat
-
         total_cpu_stat = await self.total_cpu_stat
+        pid_diff = pid_stat - last_pid_cpu_stat
         cpu_diff = total_cpu_stat - last_total_cpu_stat
 
         app_cpu_usage = pid_diff.total / cpu_diff.total * 100
