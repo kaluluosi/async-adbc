@@ -1,4 +1,5 @@
 import asyncio
+import unittest
 from tests.testcase import DeviceTestCase
 
 ARM_APK = r"tests\assets\app-armeabi-v7a.apk"
@@ -40,11 +41,7 @@ class TestCpuPlugin(DeviceTestCase):
         self.assertEqual(len(stat), cpu_count)
 
     async def test_cpu_usage(self):
-        i = 5
-        while i:
-            usage = await self.device.cpu.cpu_usages
-            await asyncio.sleep(1)
-            i -= 1
+        usage = await self.device.cpu.cpu_usages
 
         cpu_count = await self.device.cpu.count
 
@@ -56,33 +53,22 @@ class TestCpuPlugin(DeviceTestCase):
         self.assertGreater(stat.usage, 0)
 
     async def test_total_cpu_usage(self):
-        i = 5
-        while i:
-            usage = await self.device.cpu.total_cpu_usage
-            await asyncio.sleep(1)
-            i -= 1
-
+        usage = await self.device.cpu.total_cpu_usage
         self.assertGreater(usage.usage, 0)
 
     async def test_pid_cpu_stat(self):
         await self.device.am.start_app(PKG_NAME)
 
         pid = await self.device.get_pid_by_pkgname(PKG_NAME)
-
         stat = await self.device.cpu.get_pid_cpu_stat(pid)
 
         self.assertGreater(stat.utime, 0)
 
     async def test_pid_cpu_usage(self):
+        PKG_NAME = "com.android.browser"
         await self.device.am.start_app(PKG_NAME)
         pid = await self.device.get_pid_by_pkgname(PKG_NAME)
-
-        i = 5
-
-        while i:
-            i -= 1
-            await asyncio.sleep(1)
-            stat = await self.device.cpu.get_pid_cpu_usage(pid)
+        stat = await self.device.cpu.get_pid_cpu_usage(pid)
 
         self.assertGreater(stat.usage, 0)
 

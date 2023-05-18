@@ -160,9 +160,6 @@ class ProcessCPUStat:
 class CPUPlugin(Plugin):
     def __init__(self, device: "Device") -> None:
         super().__init__(device)
-        self._last_cpu_stat: Optional[CPUStatMap] = {}
-        self._last_total_cpu_stat: Optional[CPUStat] = CPUStat()
-        self._last_pid_cpu_stat: Optional[ProcessCPUStat] = ProcessCPUStat()
 
     @property
     async def count(self) -> int:
@@ -268,16 +265,16 @@ class CPUPlugin(Plugin):
         normalize_factor = await self.normalize_factor
         cpu_count = await self.count
         cpu_usage = {i: CPUUsage() for i in range(cpu_count)}
-        if not self._last_cpu_stat:
-            self._last_cpu_stat = await self.cpu_stats
-        else:
-            cpu_state = await self.cpu_stats
-            for index, state in cpu_state.items():
-                last_cpu_state = self._last_cpu_stat[index]
-                cpu_diff: CPUStat = state - last_cpu_state
-                usage = round(cpu_diff.usage, 2)
-                normalized = usage * normalize_factor
-                cpu_usage[index] = CPUUsage(usage, normalized)
+
+        last_cpu_stats = await self.cpu_stats
+        await asyncio.sleep(1)
+        cpu_stats = await self.cpu_stats
+        for index, stat in cpu_stats.items():
+            last_cpu_stat = last_cpu_stats[index]
+            cpu_diff: CPUStat = stat - last_cpu_stat
+            usage = round(cpu_diff.usage, 2)
+            normalized = usage * normalize_factor
+            cpu_usage[index] = CPUUsage(usage, normalized)
         return cpu_usage
 
     @property
@@ -317,14 +314,14 @@ class CPUPlugin(Plugin):
         Returns:
             CPUUsage: CPU使用率
         """
-        if self._last_total_cpu_stat is None:
-            self._last_total_cpu_stat = await self.total_cpu_stat
-            return CPUUsage()
+
+        last_total_cpu_stat = await self.total_cpu_stat
+
+        # 用sleep来间隔采样
+        await asyncio.sleep(1)
 
         total_cpu_stat = await self.total_cpu_stat
-        diff = total_cpu_stat - self._last_total_cpu_stat
-
-        self._last_total_cpu_stat = total_cpu_stat
+        diff = total_cpu_stat - last_total_cpu_stat
 
         usage = round(diff.usage, 2)
         normalize_factor = await self.normalize_factor
@@ -341,7 +338,7 @@ class CPUPlugin(Plugin):
         Returns:
             ProcessCPUStat: 进程cpu状态
         """
-        result = await self._device.shell("cat /proc/{}/stat".format(pid))
+        result = await self._device.shell(f"cat /proc/{pid}/stat")
 
         if "No such file or directory" in result:
             return ProcessCPUStat("", 0, 0)
@@ -350,23 +347,21 @@ class CPUPlugin(Plugin):
             return ProcessCPUStat(items[1], int(items[13]), int(items[14]))
 
     async def get_pid_cpu_usage(self, pid: int) -> CPUUsage:
-        if self._last_pid_cpu_stat is None:
-            self._last_pid_cpu_stat = await self.get_pid_cpu_stat(pid)
-            return CPUUsage()
-
+        normalize_factor = await self.normalize_factor
+        
+        last_pid_cpu_stat = await self.get_pid_cpu_stat(pid)
+        last_total_cpu_stat = await self.total_cpu_stat
+        await asyncio.sleep(1)
         pid_stat = await self.get_pid_cpu_stat(pid)
-        pid_diff = pid_stat - self._last_pid_cpu_stat
+        pid_diff = pid_stat - last_pid_cpu_stat
 
         total_cpu_stat = await self.total_cpu_stat
-        cpu_diff = total_cpu_stat - self._last_total_cpu_stat
-        self._last_total_cpu_stat = total_cpu_stat
+        cpu_diff = total_cpu_stat - last_total_cpu_stat
 
         app_cpu_usage = pid_diff.total / cpu_diff.total * 100
         app_cpu_usage = round(app_cpu_usage, 2)
 
-        normalize_factor = await self.normalize_factor
         normalized = app_cpu_usage * normalize_factor
-
         return CPUUsage(app_cpu_usage, normalized)
 
     @property
