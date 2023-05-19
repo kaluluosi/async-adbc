@@ -85,3 +85,8 @@ class TestDevice(DeviceTestCase):
         rules = await self.device.reverse_list()
 
         self.assertFalse(rules)
+
+    async def test_get_pid_by_pkgname(self):
+        pid = await self.device.get_pid_by_pkgname("com.android.browser")
+
+        self.assertTrue(pid)

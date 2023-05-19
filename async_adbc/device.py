@@ -100,10 +100,17 @@ class Device(LocalService):
         return properties
 
     async def get_pid_by_pkgname(self, package_name: str) -> int:
-        result = await self.shell(f"ps -e| grep -i {package_name}")
-
+        result = await self.shell(f"ps -ef| grep {package_name}")
         if result:
-            return int(result.split()[1])
+            lines = [
+                line.split()
+                for line in result.splitlines()
+                if not line.startswith("shell")
+            ]
+            process_list = [(seq[1], seq[7]) for seq in lines]
+            process_list.sort(key=lambda v: v[1], reverse=False)
+
+            return process_list[0][0]
 
         else:
             raise ValueError(f"{package_name} 应用没有运行")
