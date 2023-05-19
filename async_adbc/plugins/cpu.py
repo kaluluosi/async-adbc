@@ -315,11 +315,10 @@ class CPUPlugin(Plugin):
         total_cpu_stat = await self.total_cpu_stat
         diff = total_cpu_stat - last_total_cpu_stat
 
-        usage = round(diff.usage, 2)
         normalize_factor = await self.normalize_factor
-        normalized = usage * normalize_factor
+        normalized = diff.usage * normalize_factor
 
-        return CPUUsage(usage, normalized)
+        return CPUUsage(diff.usage, normalized)
 
     async def get_pid_cpu_stat(self, pid: int) -> ProcessCPUStat:
         """以pid获取进程cpu状态
@@ -352,7 +351,6 @@ class CPUPlugin(Plugin):
         cpu_diff = total_cpu_stat - last_total_cpu_stat
 
         app_cpu_usage = pid_diff.total / cpu_diff.total * 100
-        app_cpu_usage = round(app_cpu_usage, 2)
 
         normalized = app_cpu_usage * normalize_factor
         return CPUUsage(app_cpu_usage, normalized)
