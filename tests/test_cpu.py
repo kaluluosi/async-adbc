@@ -82,3 +82,15 @@ class TestCpuPlugin(DeviceTestCase):
 
     async def test_info(self):
         await self.device.cpu.info
+
+    async def test_cpu(self):
+        await self.device.am.start_app(PKG_NAME)
+        pid = await self.device.get_pid_by_pkgname(PKG_NAME)
+
+        total, app = await asyncio.gather(
+            self.device.cpu.total_cpu_usage, self.device.cpu.get_pid_cpu_usage(pid)
+        )
+        print("total:", total.usage, "app:", app.usage)
+        print("total:", total.normalized, "app:", app.normalized)
+
+        self.assertGreater(total.usage, app.usage)

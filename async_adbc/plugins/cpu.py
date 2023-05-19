@@ -76,7 +76,7 @@ class CPUStat:
         Returns:
             float: 占用率
         """
-        return (self.user + self.system) / self.total * 100
+        return 100 * (self.user + self.system) / self.total
 
     def __add__(self, other: "CPUStat"):
         summary = CPUStat()
@@ -337,7 +337,7 @@ class CPUPlugin(Plugin):
         else:
             items = result.split()
             return ProcessCPUStat(
-                items[1], int(items[13]), int(items[14], int(items[15], int(items[16])))
+                items[1], int(items[13]), int(items[14]), int(items[15]), int(items[16])
             )
 
     async def get_pid_cpu_usage(self, pid: int) -> CPUUsage:
