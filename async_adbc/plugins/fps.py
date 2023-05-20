@@ -1,6 +1,6 @@
 from . import Plugin
 from typing import Optional
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from dataclasses_json import dataclass_json
 
 
@@ -11,10 +11,10 @@ class SurfaceNotFoundError(Exception):
 @dataclass_json
 @dataclass
 class FpsStat:
-    fps: float
-    jank: float
-    big_jank: float
-    frametimes: list[int]
+    fps: float = 0
+    jank: float = 0
+    big_jank: float = 0
+    frametimes: list[int] = field(default=list)
 
 
 class FpsPlugin(Plugin):
