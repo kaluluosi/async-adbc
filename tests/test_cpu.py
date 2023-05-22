@@ -9,11 +9,11 @@ PKG_NAME = "com.cloudmosa.helloworldapk"
 class TestCpuPlugin(DeviceTestCase):
     async def asyncSetUp(self):
         await super().asyncSetUp()
-        await self.device.pm.install(ARM_APK)
+        # await self.device.pm.install(ARM_APK)
 
     async def asyncTearDown(self):
         await super().asyncTearDown()
-        await self.device.pm.uninstall(PKG_NAME)
+        # await self.device.pm.uninstall(PKG_NAME)
 
     async def test_cpu_count(self):
         cpu_count = await self.device.cpu.count
@@ -84,13 +84,16 @@ class TestCpuPlugin(DeviceTestCase):
         await self.device.cpu.info
 
     async def test_cpu(self):
+        PKG_NAME = "com.android.browser"
         await self.device.am.start_app(PKG_NAME)
         pid = await self.device.get_pid_by_pkgname(PKG_NAME)
 
-        total, app = await asyncio.gather(
-            self.device.cpu.total_cpu_usage, self.device.cpu.get_pid_cpu_usage(pid)
-        )
-        print("total:", total.usage, "app:", app.usage)
-        print("total:", total.normalized, "app:", app.normalized)
+        while True:
+            total, app = await asyncio.gather(
+                self.device.cpu.total_cpu_usage, self.device.cpu.get_pid_cpu_usage(pid)
+            )
+            print("total:", total.usage, "app:", app.usage)
+            print("total:", total.normalized, "app:", app.normalized)
+            await asyncio.sleep(1)
 
         self.assertGreater(total.usage, app.usage)

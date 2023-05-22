@@ -310,7 +310,7 @@ class CPUPlugin(Plugin):
         last_total_cpu_stat = await self.total_cpu_stat
 
         # 用sleep来间隔采样
-        await asyncio.sleep(1)
+        # await asyncio.sleep(1)
 
         total_cpu_stat = await self.total_cpu_stat
         diff = total_cpu_stat - last_total_cpu_stat
@@ -344,7 +344,7 @@ class CPUPlugin(Plugin):
 
         last_pid_cpu_stat = await self.get_pid_cpu_stat(pid)
         last_total_cpu_stat = await self.total_cpu_stat
-        await asyncio.sleep(1)
+        # await asyncio.sleep(1)
         pid_stat = await self.get_pid_cpu_stat(pid)
         total_cpu_stat = await self.total_cpu_stat
         pid_diff = pid_stat - last_pid_cpu_stat
