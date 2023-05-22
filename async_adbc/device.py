@@ -19,6 +19,8 @@ from async_adbc.plugins import (
     ForwardPlugin,
     ActivityManagerPlugin,
     LogcatPlugin,
+    MinicapPlugin,
+    WMPlugin,
 )
 
 if typing.TYPE_CHECKING:
@@ -49,6 +51,8 @@ class Device(LocalService):
         self.am = ActivityManagerPlugin(self)
         self.forward = ForwardPlugin(self)
         self.logcat = LogcatPlugin(self)
+        self.minicap = MinicapPlugin(self)
+        self.wm = WMPlugin(self)
 
     async def create_connection(self) -> Connection:
         conn = await self.adbc.create_connection()
@@ -114,3 +118,15 @@ class Device(LocalService):
 
         else:
             raise ValueError(f"{package_name} 应用没有运行")
+
+    async def file_exists(self, file_path: str) -> bool:
+        """判断设备存在这个文件路径
+
+        Args:
+            file_path (str): 文件路径
+
+        Returns:
+            bool: true 存在， false不存在
+        """
+        res = await self.shell("ls", file_path)
+        return not ("No such file or directory" in res)

@@ -8,6 +8,7 @@ __pycache__/
 *$py.class
 
 # C extensions
+!vendor/
 *.so
 
 # Distribution / packaging

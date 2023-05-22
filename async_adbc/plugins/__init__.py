@@ -22,3 +22,5 @@ from .temp import TempPlugin
 from .traffic import TrafficPlugin
 from .forward import ForwardPlugin
 from .logcat import LogcatPlugin
+from .minicap import MinicapPlugin
+from .wm import WMPlugin
