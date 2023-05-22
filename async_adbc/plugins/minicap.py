@@ -14,6 +14,9 @@ class MinicapPlugin(Plugin):
         """
 
         exists = await self._device.file_exists("/data/local/tmp/minicap")
+        exists = exists and await self._device.file_exists(
+            "/data/local/temp/minicap.so"
+        )
         if exists:
             return
 
@@ -48,7 +51,7 @@ class MinicapPlugin(Plugin):
         await self._device.push(sofile_path, self.PUSH_TO + "/minicap.so", chmode=0o755)
 
     async def get_frame(self):
-        self.init()
+        await self.init()
 
         resolution = await self._device.wm.size()
         size = resolution.override_size
@@ -59,6 +62,12 @@ class MinicapPlugin(Plugin):
             f"{size}@{size}/{orientation}",
             "-s",
         )
+
+        if b"CANNOT LINK EXECUTABLE" in raw_data:
+            raise RuntimeError(raw_data.decode())
+
+        if b"inaccessible or not found" in raw_data:
+            raise RuntimeError(raw_data.decode())
 
         jpg_data = raw_data.split(b"for JPG encoder\n")[-1]
         return jpg_data

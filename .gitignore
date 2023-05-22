@@ -9,7 +9,6 @@ __pycache__/
 
 # C extensions
 !vendor/
-*.so
 
 # Distribution / packaging
 .Python
