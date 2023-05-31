@@ -2,7 +2,7 @@ import asyncio
 import re
 from dataclasses import field, dataclass
 import typing
-from typing import Optional
+from typing import Optional, overload
 from dataclasses_json import dataclass_json
 
 from . import Plugin
@@ -152,6 +152,8 @@ class ProcessCPUStat:
 class CPUPlugin(Plugin):
     def __init__(self, device: "Device") -> None:
         super().__init__(device)
+        self._freqs = None
+        self._normalize_factor = None
 
     @property
     async def count(self) -> int:
@@ -169,7 +171,7 @@ class CPUPlugin(Plugin):
         return _cpu_count
 
     @property
-    async def freqs(self) -> dict[int, CPUFreq]:
+    async def freqs(self) -> list[CPUFreq]:
         """
         获取所有cpu的 最小最大和当前频率
 
@@ -178,19 +180,26 @@ class CPUPlugin(Plugin):
         Returns:
             dict[int,CPUFreq]: key是CPU编号，value是CPUFreq
         """
+        if self._freqs:
+            return self._freqs
+
         count = await self.count
-        freq = {}
+        coroutines = []
         for index in range(count):
             cmd_root = f"cat /sys/devices/system/cpu/cpu{index}/cpufreq"
             min = self._device.shell(f"{cmd_root}/cpuinfo_min_freq")
             cur = self._device.shell(f"{cmd_root}/scaling_cur_freq")
             max = self._device.shell(f"{cmd_root}/cpuinfo_max_freq")
 
-            min, cur, max = await asyncio.gather(min, cur, max)
+            coroutine = asyncio.gather(min, cur, max)
+            coroutines.append(coroutine)
 
-            freq[index] = CPUFreq(int(min), int(cur), int(max))
+        freq_list = await asyncio.gather(*coroutines)
+        self._freqs = [
+            CPUFreq(int(min), int(cur), int(max)) for (min, cur, max) in freq_list
+        ]
 
-        return freq
+        return self._freqs
 
     @property
     async def normalize_factor(self) -> float:
@@ -203,10 +212,13 @@ class CPUPlugin(Plugin):
         Returns:
             float: 因子
         """
+        if self._normalize_factor:
+            return self._normalize_factor
+
         cpu_freqs = await self.freqs
 
         # 合计所有CPU最大频率
-        total_max_freq = sum([v.max for _, v in cpu_freqs.items()])
+        total_max_freq = sum([v.max for v in cpu_freqs])
 
         # 找出所有在在线的CPU
         online_cmd = "cat /sys/devices/system/cpu/online"
@@ -222,7 +234,8 @@ class CPUPlugin(Plugin):
             for i in range(p[0], p[1] + 1):
                 cur_freq_sum += cpu_freqs[i].cur
 
-        return cur_freq_sum / total_max_freq
+        self._normalize_factor = cur_freq_sum / total_max_freq
+        return self._normalize_factor
 
     @property
     async def cpu_stats(self) -> CPUStatMap:
@@ -340,13 +353,19 @@ class CPUPlugin(Plugin):
             )
 
     async def get_pid_cpu_usage(self, pid: int) -> CPUUsage:
-        normalize_factor = await self.normalize_factor
+        import time
 
-        last_pid_cpu_stat = await self.get_pid_cpu_stat(pid)
-        last_total_cpu_stat = await self.total_cpu_stat
-        # await asyncio.sleep(1)
-        pid_stat = await self.get_pid_cpu_stat(pid)
-        total_cpu_stat = await self.total_cpu_stat
+        start = time.time()
+        normalize_factor = await self.normalize_factor
+        print("get_pid_cpu_usage", time.time() - start)
+
+        last_pid_cpu_stat, last_total_cpu_stat = await asyncio.gather(
+            self.get_pid_cpu_stat(pid), self.total_cpu_stat
+        )
+
+        pid_stat, total_cpu_stat = await asyncio.gather(
+            self.get_pid_cpu_stat(pid), self.total_cpu_stat
+        )
         pid_diff = pid_stat - last_pid_cpu_stat
         cpu_diff = total_cpu_stat - last_total_cpu_stat
 

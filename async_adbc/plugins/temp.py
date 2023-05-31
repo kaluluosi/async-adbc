@@ -3,6 +3,7 @@ from dataclasses import dataclass
 from typing import Optional
 
 from dataclasses_json import dataclass_json
+
 from . import Plugin
 
 
@@ -37,7 +38,7 @@ class TempPlugin(Plugin):
     SENSOR_LIST_CMD = "cat /sys/devices/virtual/thermal/thermal_zone*/type"
     SENSOR_FILE_LIST_CMD = "cd /sys/devices/virtual/thermal/ && ls|grep thermal_zone"
     SENSOR_TEMP_LIST_CMD = "cat /sys/devices/virtual/thermal/thermal_zone*/temp"
-    TEMP_CMD = "cat /sys/devices/virtual/thermal/{filename}/temp"
+    TEMP_CMD = "/sys/devices/virtual/thermal/{filename}/temp"
 
     # 回滚保底温度记录文件
     PLAY_BACK_TEMP_FILE_LIST = [
@@ -57,35 +58,48 @@ class TempPlugin(Plugin):
         "/sys/devices/platform/s5p-tmu/curr_temp",
     ]
 
-    async def _thermal_map(self):
-        file_type_map = await self._device.shell(
-            'for f in /sys/class/thermal/thermal_zone*/type;do echo "$f:$(cat $f)"; done'
-        )
+    def __init__(self, device) -> None:
+        super().__init__(device)
+        self._thermal_map = None
+        self._playback_cpu_temp_file = None
 
-        lines = file_type_map.splitlines()
-        file_type_map = map(lambda line: line.split(":"), lines)
+    async def _get_thermal_map(self):
+        sensor_list = await self._device.shell(self.SENSOR_LIST_CMD)
+        sensor_list = sensor_list.splitlines()
+
+        sensor_file_list = await self._device.shell(self.SENSOR_FILE_LIST_CMD)
+        sensor_file_list = sensor_file_list.splitlines()
+
+        file_type_map = [
+            (self.TEMP_CMD.format(filename=sensor_file_list[i]), v)
+            for i, v in enumerate(sensor_list)
+        ]
         return file_type_map
 
     async def _get_temp_file(self, marks: list[str]):
-        thermal_map = await self._thermal_map()
+        if not self._thermal_map:
+            self._thermal_map = await self._get_thermal_map()
 
         for mark in marks:
-            for thermal in thermal_map:
+            for thermal in self._thermal_map:
                 if mark in thermal[1]:
-                    file = thermal[0].replace("/type", "/temp")
-                    return file
+                    return thermal[0]
 
-        return await self._get_playback_cpu_temp()
+        return await self._get_playback_cpu_temp_file()
 
-    async def _get_playback_cpu_temp(self):
+    async def _get_playback_cpu_temp_file(self):
         """保底的CPU温度方案，当传感器都读不到温度的时候默认用Solopi同款 CPU温度"""
+
+        if self._playback_cpu_temp_file:
+            return self._playback_cpu_temp_file
 
         for temp_file in self.PLAY_BACK_TEMP_FILE_LIST:
             res = await self._device.shell("cat", temp_file)
             res = res.strip()
             if res.isdigit():
                 int(res)
-                return temp_file
+                self._playback_cpu_temp_file = temp_file
+                return self._playback_cpu_temp_file
         raise FileNotFoundError("没有合适的温度文件读取")
 
     async def _get_temp(self, marks: list[str]):
