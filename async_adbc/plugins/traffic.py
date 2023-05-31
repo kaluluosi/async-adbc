@@ -79,4 +79,5 @@ class TrafficPlugin(Plugin):
             self._last_stat = new_stat
 
         diff = new_stat - self._last_stat
+        self._last_stat = new_stat
         return diff
