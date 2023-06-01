@@ -13,12 +13,12 @@ class TestPerf(DeviceTestCase):
             # await self.device.cpu.freqs
             # await self.device.cpu.get_pid_cpu_usage(pid)
             result = await asyncio.gather(
-                self.device.cpu.get_pid_cpu_usage(pid),
+                # self.device.cpu.get_pid_cpu_usage(pid),
                 self.device.fps.stat(pkg_name),
-                self.device.mem.stat(pkg_name),
-                self.device.battery.stat(),
-                self.device.temp.stat(),
-                self.device.traffic.stat(pkg_name),
+                # self.device.mem.stat(pkg_name),
+                # self.device.battery.stat(),
+                # self.device.temp.stat(),
+                # self.device.traffic.stat(pkg_name),
             )
-
             print(time.time() - start, result)
+            await asyncio.sleep(1)

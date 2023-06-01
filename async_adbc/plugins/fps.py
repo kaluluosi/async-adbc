@@ -119,13 +119,17 @@ class FpsPlugin(Plugin):
 
         frame_count = len(data_table)
 
-        if frame_count == 1:
+        if frame_count == 0:
             return 0
+        elif frame_count == 1:
+            return 1
 
-        start_time = data_table[0][2]
-        end_time = data_table[-1][2]
+        start_time = data_table[0][0]
+        end_time = data_table[-1][0]
 
         duration = end_time - start_time
         # pow(10,9)是 1000000000 ，用来把纳秒转秒
+        if duration <= 0:  # 可能是0
+            return 1
 
         return frame_count * pow(10, 9) / duration
