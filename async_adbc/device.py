@@ -111,6 +111,10 @@ class Device(LocalService):
                 for line in result.splitlines()
                 if not line.startswith("shell")
             ]
+
+            if not lines:
+                raise ValueError(f"{package_name} 应用没有运行")
+
             process_list = [(seq[1], seq[7]) for seq in lines]
             process_list.sort(key=lambda v: v[1], reverse=False)
 
