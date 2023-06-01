@@ -61,10 +61,10 @@ class TrafficPlugin(Plugin):
             TrafficStat: 流量统计
         """
 
-        if isinstance(package_name, str):
+        try:
             pid = await self._device.get_pid_by_pkgname(package_name)
             result = await self._device.shell(f"cat /proc/{pid}/net/dev")
-        else:
+        except:
             result = await self._device.shell("cat /proc/net/dev")
 
         lines = map(lambda line: line.split(), result.splitlines()[2:])

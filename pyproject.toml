@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "async-adbc"
-version = "1.0.13"
+version = "1.0.14"
 description = ""
 authors = ["kaluluosi <kaluluosi@gmail.com>"]
 readme = "README.md"

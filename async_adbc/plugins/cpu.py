@@ -1,8 +1,9 @@
 import asyncio
 import re
-from dataclasses import field, dataclass
 import typing
+
 from typing import Optional, overload
+from dataclasses import field, dataclass
 from dataclasses_json import dataclass_json
 
 from . import Plugin
@@ -333,7 +334,15 @@ class CPUPlugin(Plugin):
 
         return CPUUsage(diff.usage, normalized)
 
-    async def get_pid_cpu_stat(self, pid: int) -> ProcessCPUStat:
+    @overload
+    async def get_pid_cpu_stat(self, pkg_name: str):
+        ...
+
+    @overload
+    async def get_pid_cpu_stat(self, pid: int):
+        ...
+
+    async def get_pid_cpu_stat(self, pid) -> ProcessCPUStat:
         """以pid获取进程cpu状态
 
         Args:
@@ -342,6 +351,12 @@ class CPUPlugin(Plugin):
         Returns:
             ProcessCPUStat: 进程cpu状态
         """
+        if isinstance(pid, str):
+            try:
+                pid = await self._device.get_pid_by_pkgname(pid)
+            except:
+                return ProcessCPUStat()
+
         result = await self._device.shell(f"cat /proc/{pid}/stat")
 
         if "No such file or directory" in result:
@@ -349,15 +364,29 @@ class CPUPlugin(Plugin):
         else:
             items = result.split()
             return ProcessCPUStat(
-                items[1], int(items[13]), int(items[14]), int(items[15]), int(items[16])
+                items[1],
+                int(items[13]),
+                int(items[14]),
+                int(items[15]),
+                int(items[16]),
             )
 
-    async def get_pid_cpu_usage(self, pid: int) -> CPUUsage:
-        import time
+    @overload
+    async def get_pid_cpu_usage(self, pid: int):
+        ...
 
-        start = time.time()
+    @overload
+    async def get_pid_cpu_usage(self, pid: str):
+        ...
+
+    async def get_pid_cpu_usage(self, pid) -> CPUUsage:
+        if isinstance(pid, str):
+            try:
+                pid = await self._device.get_pid_by_pkgname(pid)
+            except:
+                return CPUUsage()
+
         normalize_factor = await self.normalize_factor
-        print("get_pid_cpu_usage", time.time() - start)
 
         last_pid_cpu_stat, last_total_cpu_stat = await asyncio.gather(
             self.get_pid_cpu_stat(pid), self.total_cpu_stat
