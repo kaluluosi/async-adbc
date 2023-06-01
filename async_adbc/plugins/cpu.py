@@ -335,11 +335,11 @@ class CPUPlugin(Plugin):
         return CPUUsage(diff.usage, normalized)
 
     @overload
-    async def get_pid_cpu_stat(self, pkg_name: str):
+    async def get_pid_cpu_stat(self, pkg_name: str) -> ProcessCPUStat:
         ...
 
     @overload
-    async def get_pid_cpu_stat(self, pid: int):
+    async def get_pid_cpu_stat(self, pid: int) -> ProcessCPUStat:
         ...
 
     async def get_pid_cpu_stat(self, pid) -> ProcessCPUStat:
@@ -372,11 +372,11 @@ class CPUPlugin(Plugin):
             )
 
     @overload
-    async def get_pid_cpu_usage(self, pid: int):
+    async def get_pid_cpu_usage(self, pid: int) -> CPUUsage:
         ...
 
     @overload
-    async def get_pid_cpu_usage(self, pid: str):
+    async def get_pid_cpu_usage(self, pid: str) -> CPUUsage:
         ...
 
     async def get_pid_cpu_usage(self, pid) -> CPUUsage:

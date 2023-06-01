@@ -62,7 +62,7 @@ class FpsPlugin(Plugin):
         surface_view = await self.get_surface_view(package_name)
 
         if not surface_view:
-            return FpsStat()
+            return data
 
         result: str = await self._device.shell(
             f'dumpsys SurfaceFlinger --latency "{surface_view}"'
