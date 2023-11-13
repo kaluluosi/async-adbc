@@ -3,6 +3,7 @@ name = "async-adbc"
 version = "1.0.15"
 description = ""
 authors = ["kaluluosi <kaluluosi@gmail.com>"]
+repository = "https://github.com/kaluluosi/async-adbc"
 readme = "README.md"
 
 [tool.poetry.dependencies]
