@@ -3,7 +3,16 @@ name: demo
 run-name: ${{github.actor}} running demo
 on: 
     workflow_dispatch:
-    push:
+        inputs:
+            mode:
+                description: 模式
+                required: true
+                default: dev
+                type: choice
+                options:
+                    - dev
+                    - prod
+            
 
 jobs:
     dosomething:
