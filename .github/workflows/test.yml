@@ -14,11 +14,15 @@ jobs:
         uses: actions/setup-python@v4.7.1
         with:
           python-version: "3.9"
-          cache: 'poetry'
       - name: Update pip
         run: pip install --upgrade pip
       - name: Install Poetry
         run: pip install poetry
+      - name: Cache
+        uses: actions/cache@v2.1.7
+        with:
+          path: ~/.cache/pypoetry/virtualenvs
+          key: ${{ runner.os }}-poetry-${{ hashFiles('**/poetry.lock') }}
       - name: Install dependencies
         run: poetry install
 
