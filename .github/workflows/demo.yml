@@ -9,7 +9,7 @@ jobs:
         steps:
             - name: print job
               run: |
-                  echo ${{ job.runs-on }}
+                  echo ${{ job['runs-on'] }}
 
             - name: print step
               run: |
