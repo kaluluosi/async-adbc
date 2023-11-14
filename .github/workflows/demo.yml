@@ -7,13 +7,13 @@ jobs:
     dosomething:
         runs-on: ubuntu-latest
         steps:
-            - name: print env
+            - name: print job
               run: |
-                  echo ${{ env.SHIT }}
+                  echo ${{ job }}
 
-            - name: print env variables
+            - name: print step
               run: |
-                  echo ${{env.SHIT.SHIT_VAR}}
+                  echo ${{job}}
 
             - name: print vars
               run: |
