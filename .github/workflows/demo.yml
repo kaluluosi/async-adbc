@@ -8,10 +8,12 @@ jobs:
         runs-on: ubuntu-latest
         steps:
             - name: print env secrets
-              run: echo ${{env.ENV_SECRET}}
+              run: |
+                  echo ${{ env.EVN_SECRET }}
 
             - name: print env variables
-              run: echo ${{vars.ENV_VARIABLE}}
+              run: |
+                  echo ${{vars.ENV_VARIABLE}}
 
             - name: print vars
               run: |
