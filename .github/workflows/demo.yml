@@ -9,7 +9,7 @@ jobs:
         steps:
             - name: print env secrets
               run: |
-                  echo ${{ env.EVN_SECRET }}
+                  echo ${{ secrets.EVN_SECRET }}
 
             - name: print env variables
               run: |
