@@ -1,7 +1,9 @@
 
 name: demo
 run-name: ${{github.actor}} running demo
-on: [push]
+on: 
+    workflow_dispatch:
+    push:
 
 jobs:
     dosomething:
