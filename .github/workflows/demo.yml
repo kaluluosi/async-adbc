@@ -1,0 +1,22 @@
+
+name: demo
+run-name: ${{github.actor}} running demo
+on: [push]
+
+jobs:
+    dosomething:
+        runs-on: ubuntu-latest
+        steps:
+            - name: print env secrets
+              run: echo ${{env.ENV_SECRET}}
+
+            - name: print env variables
+              run: echo ${{vars.ENV_VARIABLE}}
+
+            - name: print vars
+              run: |
+                echo ${{vars.TEST_VAR}}
+        
+            - name: print secrets
+              run: |
+                echo ${{secrets.PYPI_API_TOKEN}}
