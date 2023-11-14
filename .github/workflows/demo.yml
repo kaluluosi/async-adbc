@@ -1,7 +1,14 @@
 
 name: demo
 run-name: ${{github.actor}} running demo
-on: [push]
+on: 
+    workflow_call:
+        inputs:
+            mode:
+                required: true
+                type: string
+                default: 'development'
+
 
 jobs:
     dosomething:
