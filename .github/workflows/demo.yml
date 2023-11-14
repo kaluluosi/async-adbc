@@ -1,31 +1,11 @@
 
 name: demo
 run-name: ${{github.actor}} running demo
-on: 
-    workflow_call:
-        inputs:
-            mode:
-                required: true
-                type: string
-                default: 'development'
-
+on: [push]
 
 jobs:
     dosomething:
         runs-on: ubuntu-latset
         steps:
-            - name: print job
-              run: |
-                  echo ${{ job['runs-on'] }}
-
-            - name: print step
-              run: |
-                  echo ${{job}}
-
-            - name: print vars
-              run: |
-                echo ${{vars.TEST_VAR}}
-        
-            - name: print secrets
-              run: |
-                echo ${{secrets.PYPI_API_TOKEN}}
+            - name: print env
+              run: env
