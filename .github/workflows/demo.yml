@@ -7,13 +7,13 @@ jobs:
     dosomething:
         runs-on: ubuntu-latest
         steps:
-            - name: print env secrets
+            - name: print env
               run: |
-                  echo ${{ secrets.EVN_SECRET }}
+                  echo ${{ env.SHIT }}
 
             - name: print env variables
               run: |
-                  echo ${{vars.ENV_VARIABLE}}
+                  echo ${{env.SHIT.SHIT_VAR}}
 
             - name: print vars
               run: |
