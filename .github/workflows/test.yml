@@ -1,1 +1,16 @@
 
+name: test
+run-name: ${{github.actor}} running test
+
+on: [push]
+
+jobs:
+  testing:
+    runs-on: ubuntu-latest
+    steps:
+      - name: checkout
+        uses: actions/checkout@4.1.1
+      - name: poetry
+        
+
+          
