@@ -5,11 +5,11 @@ on: [push]
 
 jobs:
     dosomething:
-        runs-on: ubuntu-latest
+        runs-on: ubuntu-latset
         steps:
             - name: print job
               run: |
-                  echo ${{ job }}
+                  echo ${{ job.runs-on }}
 
             - name: print step
               run: |
