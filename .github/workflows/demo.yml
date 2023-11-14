@@ -5,7 +5,7 @@ on: [push]
 
 jobs:
     dosomething:
-        runs-on: ubuntu-latset
+        runs-on: ubuntu-latest
         steps:
             - name: print env
               run: env
