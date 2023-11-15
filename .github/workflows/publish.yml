@@ -7,10 +7,10 @@ on:
         types: [published]
 
     workflow_dispatch:
-
 jobs:
     deploy:
         runs-on: ubuntu-latest
+        if: github.ref == 'refs/heads/master'
         steps:
             - name: checkout
               uses: actions/checkout@v2
