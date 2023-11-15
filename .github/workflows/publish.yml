@@ -13,9 +13,15 @@ jobs:
         if: github.ref == 'refs/heads/master'
         steps:
             - name: checkout
+<<<<<<< HEAD
               uses: actions/checkout@v4
             - name: Set up Python
               uses: actions/setup-python@v4
+=======
+              uses: actions/checkout@v4.1.1
+            - name: Set up Python
+              uses: actions/setup-python@v4.7.1
+>>>>>>> 0d6fe74967a289bf7203763f5480698be77e4488
               with:
                   python-version: '3.9'
                   cache: 'pip'
