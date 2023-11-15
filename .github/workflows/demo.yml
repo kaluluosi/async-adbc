@@ -3,20 +3,21 @@ name: demo
 run-name: ${{github.actor}} running demo
 on: 
     workflow_dispatch:
-        inputs:
-            mode:
-                description: 模式
-                required: true
-                default: dev
-                type: choice
-                options:
-                    - dev
-                    - prod
             
 
 jobs:
     dosomething:
         runs-on: ubuntu-latest
         steps:
-            - name: print env
-              run: env
+            -   name: Cache
+                id: cache
+                uses: actions/cache@v3.3.2
+                with:
+                    path: testfile
+                    key: ${{ runner.os }}-test
+            
+            -   name: Touch testfile
+                run: touch testfile
+
+            -   name: Print is cache hitted?
+                run: echo "Is cache hitted? ${{ steps.cache.outputs.cache-hit }}" 
