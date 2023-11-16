@@ -57,7 +57,6 @@ class TestDevice(DeviceTestCase):
                 self.assertEqual("Test Push", txt)
 
     async def test_reverse(self):
-        """测完所有reverse的指令"""
         rules = await self.device.reverse_list()
 
         self.assertEqual(len(rules), 0)
@@ -103,7 +102,6 @@ class TestReboot(DeviceTestCase):
     
     @unittest.skip("这个命令会重启adbd,会导致其他用例失败")
     async def test_reboot(self):
-        """没抛异常就算成功"""
         await self.device.reboot()
 
     @unittest.skip("这个命令会重启adbd,会导致其他用例失败")
