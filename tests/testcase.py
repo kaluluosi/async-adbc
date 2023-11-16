@@ -4,10 +4,10 @@ import socket
 
 from async_adbc.adbclient import ADBClient
 
-ARM_APK = r"tests\assets\app-armeabi-v7a.apk"
+ARM_APK = "tests/assets/app-armeabi-v7a.apk"
 PKG_NAME = "com.cloudmosa.helloworldapk"
 
-UNITY_APK = r"tests\assets\com.netease.poco.u3d.tutorial.apk"
+UNITY_APK = "tests/assets/com.netease.poco.u3d.tutorial.apk"
 UNITY_PKG_NAME = "com.NetEase"
 
 DOCKER_HOST = "host.docker.internal"
