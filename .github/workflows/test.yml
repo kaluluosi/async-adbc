@@ -51,6 +51,13 @@ jobs:
           adb version
           adb devices
 
-      - name: Run test-运行测试
+      - name: Run unittest-运行测试
         run: |
-          
+          python -W ignore -m coverage run -m unittest -v
+          coverage report
+
+      - name: Lint with Ruff
+        run: |
+          ruff --output-format=github .
+        continue-on-error: true
+      
