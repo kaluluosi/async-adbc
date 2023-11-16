@@ -49,5 +49,5 @@ jobs:
         run: |
           sudo apt-get install -y adb
           adb version
-          adb connect avd:5555
+          adb devices
           adb shell ls
