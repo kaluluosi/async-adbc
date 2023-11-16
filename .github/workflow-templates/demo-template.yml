@@ -1,0 +1,15 @@
+
+name: demo ci
+
+on:
+  push:
+    branches: [ $default-branch]
+
+jobs:
+  hello-world:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Hello world 
+        run: echo "Hello world"
+
+  

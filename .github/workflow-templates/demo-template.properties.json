@@ -1,0 +1,9 @@
+{
+    "name": "demo workflow",
+    "description": "demo workflow tempalte",
+    "iconName": "octicon book",
+    "categories":["python"],
+    "filePattern":[
+        ""
+    ]
+}
