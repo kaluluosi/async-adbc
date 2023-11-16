@@ -49,7 +49,10 @@ class TestCpuPlugin(DeviceTestCase):
         self.assertGreater(stat.usage, 0)
 
     async def test_total_cpu_usage(self):
-        await self.device.am.start_app("com.anrdroid.chrome")
+        await self.device.am.stop_app("com.android.chrome")
+        await asyncio.sleep(1)
+        await self.device.am.start_app("com.android.chrome")
+        await asyncio.sleep(1)
         usage = await self.device.cpu.total_cpu_usage
         self.assertGreater(usage.usage, 0)
 

@@ -46,8 +46,9 @@ async def create_connection(host: str = "127.0.0.1", port: int = 5037):
 
 
 class Response:
-    def __init__(self, reader: StreamReader) -> None:
+    def __init__(self, reader: StreamReader, _writer:StreamWriter) -> None:
         self._reader = reader
+        self._writer = _writer
 
     @property
     def reader(self):
@@ -58,6 +59,15 @@ class Response:
             _type_: _description_
         """
         return self._reader
+    
+    def __enter__(self):
+        pass
+    
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        self._writer.close()
+    
+    def close(self):
+        self._writer.close()
 
     async def text(self) -> str:
         """获取响应结果
@@ -112,7 +122,7 @@ class Connection:
         self.writer.write(data)
         await self.writer.drain()
         await self._check_status()
-        return Response(self.reader)
+        return Response(self.reader,self.writer)
 
     async def request_without_check(self, *args: str)->Response:
         """
@@ -125,7 +135,7 @@ class Connection:
         data = pack(msg)
         self.writer.write(data)
         await self.writer.drain()
-        return Response(self.reader)
+        return Response(self.reader, self.writer)
 
     async def message(self, MSG: str, length: Optional[int] = None, data: bytes = b""):
         """底层message协议请求接口，用于发送OKAY、SEND等文件传输协议
