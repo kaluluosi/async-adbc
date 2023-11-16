@@ -10,6 +10,18 @@ on:
 jobs:
   testing:
     runs-on: ubuntu-latest
+
+    services:
+      avd:
+        image: budtmo/docker-android:emulator_11.0
+        ports: 
+          - 6080:6080
+        env:
+          EMULATOR_DEVICE: "Samsung Galaxy S10"
+          WEB_VNC: false
+        options:
+          --device /dev/kvm
+
     steps:
       - name: Checkout-检出项目
         uses: actions/checkout@v4
@@ -30,8 +42,8 @@ jobs:
         run: |
           poetry install
           poetry show
-        
-      - name: Check kvm-ok
+      
+      - name: Setup ADB
         run: |
-          sudo apt install cpu-checker
-          kvm-ok
+          sudo apt-get install -y adb
+          adb version
