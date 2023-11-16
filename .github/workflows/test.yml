@@ -1,29 +1,32 @@
 
-name: test
+name: Test-测试
 run-name: ${{github.actor}} running test
 
-on: [push]
+on: 
+  push:
+  workflow_dispatch: # 手动执行测试
+
 
 jobs:
   testing:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout
+      - name: Checkout-检出项目
         uses: actions/checkout@v4
-      - name: Setup Python
+
+      - name: Install Poetry-安装poetry
+        run: pipx install poetry
+
+      - name: Setup Python-安装python环境
         uses: actions/setup-python@v4
         with:
           python-version: "3.9"
+          cache: 'poetry' # 缓存poetry
+      
       - name: Update pip
         run: pip install --upgrade pip
-      - name: Install Poetry
-        run: pip install poetry
-      - name: Cache
-        uses: actions/cache@v3.3.2
-        with:
-          path: ~/.cache/pypoetry/virtualenvs
-          key: ${{ runner.os }}-poetry-${{ hashFiles('**/poetry.lock') }}
-      - name: Install dependencies
+
+      - name: Install 
         run: poetry install
 
           
