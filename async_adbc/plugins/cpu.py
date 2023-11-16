@@ -6,7 +6,7 @@ from typing import overload
 from dataclasses import field, dataclass
 from dataclasses_json import dataclass_json
 
-from . import Plugin
+from async_adbc.plugin import Plugin
 
 if typing.TYPE_CHECKING:
     from async_adbc.device import Device

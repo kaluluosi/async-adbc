@@ -1,7 +1,7 @@
 import asyncio
 from dataclasses import dataclass
 from dataclasses_json import dataclass_json
-from . import Plugin
+from async_adbc.plugin import Plugin
 
 
 # 如果兼容性实在不行考虑去借鉴solopi

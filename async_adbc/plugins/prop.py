@@ -1,6 +1,6 @@
 import re
 
-from . import Plugin
+from async_adbc.plugin import Plugin
 
 
 class PropPlugin(Plugin):

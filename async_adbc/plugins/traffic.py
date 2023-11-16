@@ -1,5 +1,5 @@
 import typing
-from . import Plugin
+from async_adbc.plugin import Plugin
 from typing import Optional, overload
 from dataclasses import dataclass
 from dataclasses_json import dataclass_json

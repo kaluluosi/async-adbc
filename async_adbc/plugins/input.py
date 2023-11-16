@@ -1,4 +1,4 @@
-from . import Plugin
+from async_adbc.plugin import Plugin
 
 
 class Source:

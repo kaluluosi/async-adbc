@@ -1,5 +1,5 @@
 import typing
-from . import Plugin
+from async_adbc.plugin import Plugin
 
 if typing.TYPE_CHECKING:
     from async_adbc.adbclient import ForwardRule

@@ -1,6 +1,6 @@
 from asyncio import StreamReader
 from typing import Any, AsyncGenerator
-from . import Plugin
+from async_adbc.plugin import Plugin
 
 
 class LogcatPlugin(Plugin):

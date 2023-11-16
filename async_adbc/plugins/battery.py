@@ -1,7 +1,7 @@
 from dataclasses import dataclass, field
 
 from dataclasses_json import dataclass_json
-from . import Plugin
+from async_adbc.plugin import Plugin
 
 
 @dataclass_json

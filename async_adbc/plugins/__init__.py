@@ -15,15 +15,6 @@ from .logcat import LogcatPlugin
 from .minicap import MinicapPlugin
 from .wm import WMPlugin
 
-if typing.TYPE_CHECKING:
-    from async_adbc.device import Device
-
-
-class Plugin:
-    def __init__(self, device: "Device") -> None:
-        self._device = device
-
-
 __all__ = [
    'PMPlugin',
    'PropPlugin',

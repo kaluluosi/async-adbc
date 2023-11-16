@@ -1,6 +1,6 @@
 import os
 import pkg_resources
-from . import Plugin
+from async_adbc.plugin import Plugin
 
 MINICAP_LIBS = pkg_resources.resource_filename("async_adbc", "vendor/minicap")
 

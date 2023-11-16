@@ -3,7 +3,7 @@ import re
 from typing import Any
 
 from async_adbc.service.local import ProgressCallback
-from . import Plugin
+from async_adbc.plugin import Plugin
 
 
 class InstallError(Exception):
