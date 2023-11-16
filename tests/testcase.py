@@ -6,6 +6,11 @@ from async_adbc.adbclient import ADBClient
 ARM_APK = r"tests\assets\app-armeabi-v7a.apk"
 PKG_NAME = "com.cloudmosa.helloworldapk"
 
+UNITY_APK = r"tests\assets\com.netease.poco.u3d.tutorial.apk"
+UNITY_PKG_NAME = "com.NetEase"
+
+DOCKER_HOST = "host.docker.internal"
+
 
 def is_docker_android():
     # is in docker host

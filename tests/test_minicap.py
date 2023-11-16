@@ -1,5 +1,4 @@
-import struct
-import time
+
 from tests.testcase import DeviceTestCase
 
 

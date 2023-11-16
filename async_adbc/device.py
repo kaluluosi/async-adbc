@@ -1,4 +1,3 @@
-import asyncio
 import enum
 import re
 import typing
@@ -59,29 +58,6 @@ class Device(LocalService):
         await conn.transport_mode(self.serialno)
         return conn
 
-    async def wait_boot_complete(
-        self, timeout: int = 60, wait_interval: int = 1
-    ) -> bool:
-        """
-        等待到重启完毕工具函数
-
-        纯工具函数，并不是adb的指令。
-
-        :param timeout: second
-        :param timedelta: second
-        """
-        while timeout:
-            try:
-                res = await self.shell("echo", "hello")
-                if res == "hello":
-                    return True
-            except Exception:
-                pass
-
-            await asyncio.sleep(wait_interval)
-            timeout -= 1
-
-        raise TimeoutError("超时也没有重启完毕")
 
     @property
     async def properties(self) -> dict[str, str]:

@@ -37,18 +37,6 @@ class TestDevice(DeviceTestCase):
         ret = await self.device.adbd_tcpip(5555)
         self.assertTrue("restarting in TCP mode port" in ret)
 
-    # @unittest.skip(reason="还有问题，未实现")
-    async def test_root(self):
-        ret = await self.device.adbd_root()
-        self.assertEqual(ret, "restarting in root mode")
-
-    async def test_reboot(self):
-        """没抛异常就算成功"""
-        await self.device.reboot()
-        await self.device.wait_boot_complete()
-
-    async def test_remount(self):
-        await self.device.remount()
 
     async def test_push_pull(self):
         await self.device.push("tests/assets/push.txt", "/sdcard/push.txt")
@@ -95,3 +83,25 @@ class TestDevice(DeviceTestCase):
         
         await self.device.pm.uninstall(PKG_NAME)
         
+
+class TestRoot(DeviceTestCase):
+    async def test_root(self):
+        ret = await self.device.adbd_root()
+        self.assertEqual(ret, True)
+        
+    async def test_unroot(self):
+        ret = await self.device.adbd_unroot()
+        self.assertEqual(ret, True)
+
+
+class TestReboot(DeviceTestCase):
+    
+    @unittest.skip("会导致其他用例失败")
+    async def test_reboot(self):
+        """没抛异常就算成功"""
+        await self.device.reboot()
+
+    @unittest.skip("会导致其他用例失败")
+    async def test_remount(self):
+        await self.device.adbd_root()
+        await self.device.remount()

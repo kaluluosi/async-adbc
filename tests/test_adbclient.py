@@ -1,8 +1,8 @@
 import unittest
 
 from typing import Any, Coroutine
-from tests.testcase import ADBClientTestCase, DeviceTestCase
-from async_adbc.adbclient import ADBClient, ADBClient, DeviceNotFoundError
+from tests.testcase import ADBClientTestCase,IS_DOCKER_ANDROID,DOCKER_HOST
+from async_adbc.exceptions import DeviceNotFoundError
 from async_adbc.device import Status
 
 
@@ -20,14 +20,20 @@ class TestAsyncADBClient(ADBClientTestCase):
             self.assertTrue(data.status, Status.DEVICE)
             break
 
-    @unittest.skip("")
+    @unittest.skipIf(not IS_DOCKER_ANDROID, "这个用例只在运行了 docker android 容器的主机上执行")
     async def test_remote_connect(self):
-        addr = ("192.168.1.5", 5555)
+        addr = (DOCKER_HOST, 5555)
+        serialno = f"{addr[0]}:{addr[1]}"
         ret = await self.adbc.remote_connect(*addr)
-        devcie = await self.adbc.device(f"192.168.1.5:{addr[1]}")
+        self.assertTrue(ret,"连接不成功")
+        
+        device = await self.adbc.device(serialno)
+        self.assertEqual(device.serialno, serialno, "序列号不一致")
+        
         ret = await self.adbc.remote_disconnect(*addr)
+        self.assertTrue(ret,"断开连接不成功")
         with self.assertRaises(DeviceNotFoundError):
-            await self.adbc.device(f"192.168.1.5:{addr[1]}")
+            await self.adbc.device(serialno)
 
 
 class TestForward(ADBClientTestCase):

@@ -13,7 +13,7 @@ jobs:
 
     services:
       avd:
-        image: budtmo/docker-android:emulator_11.0
+        image: budtmo/docker-android:emulator_13.0
         ports: 
           - 6080:6080
           - 5554:5554
@@ -45,9 +45,12 @@ jobs:
           poetry install
           poetry show
       
-      - name: Setup ADB
+      - name: Setup ADB-安装adb
         run: |
           sudo apt-get install -y adb
           adb version
           adb devices
-          adb shell ls
+
+      - name: Run test-运行测试
+        run: |
+          

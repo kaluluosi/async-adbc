@@ -1,6 +1,5 @@
 import os
 import tempfile
-import time
 
 from tests.testcase import DeviceTestCase
 

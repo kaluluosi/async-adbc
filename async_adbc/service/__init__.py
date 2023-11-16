@@ -15,7 +15,7 @@ device是跟adbd守护进程的客户端，也就是LOCAL SERVICES的封装。
 
 import abc
 
-from async_adbc.protocol import Connection
+from async_adbc.protocol import Connection, Response
 
 
 class Service(abc.ABC):
@@ -23,6 +23,11 @@ class Service(abc.ABC):
     async def create_connection(self) -> Connection:
         ...
 
-    async def request(self, *args):
+    async def request(self, *args:str)->Response:
         conn = await self.create_connection()
         return await conn.request(*args)
+    
+    async def request_without_check(self,*args:str) -> Response:
+        conn = await self.create_connection()
+        return await conn.request_without_check(*args)
+

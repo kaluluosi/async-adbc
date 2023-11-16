@@ -1,7 +1,7 @@
 import asyncio
 from asyncio import StreamReader, StreamWriter
 import struct
-from typing import Any, AsyncGenerator, Iterable
+from typing import Any, AsyncGenerator
 
 # adb协议相关参考
 # ref https://github.com/kaluluosi/adbDocumentation/blob/master/README.zh-cn.md
@@ -82,7 +82,7 @@ class Response:
             while True:
                 data = await self.byte()
                 yield data
-        except:
+        except Exception:
             pass
 
     async def trace_text(self) -> AsyncGenerator[str, Any]:
@@ -99,14 +99,12 @@ class Connection:
         self.reader = reader
         self.writer = writer
 
-    async def request(self, *args: str):
-        """service的请求接口，这个接口专门用来发送 `host:version`这类service协议
-
-        Args:
-            msg (str): _description_
+    async def request(self, *args: str) ->Response:
+        """
+        发送请求，并检查返回状态，如果返回的是OKAY，那么返回响应。
 
         Returns:
-            _type_: _description_
+            Response: 响应
         """
 
         msg = ":".join([str(arg) for arg in args])
@@ -114,6 +112,19 @@ class Connection:
         self.writer.write(data)
         await self.writer.drain()
         await self._check_status()
+        return Response(self.reader)
+
+    async def request_without_check(self, *args: str)->Response:
+        """
+        跟request接口一样，只是不会检查返回状态。
+
+        Returns:
+            Response: 响应
+        """
+        msg = ":".join([str(arg) for arg in args])
+        data = pack(msg)
+        self.writer.write(data)
+        await self.writer.drain()
         return Response(self.reader)
 
     async def message(self, MSG: str, length: int | None = None, data: bytes = b""):
@@ -140,8 +151,10 @@ class Connection:
 
     async def transport_mode(self, serialno: str):
         """
-        转发模式，调用后，connection直接把请求转发到设备adbd进程上
+        转发模式，调用后，connection直接把请求转发到设备adbd进程上。
         """
         cmd = f"host:transport:{serialno}"
+        # NOTE: 转发模式请求是没有状态码返回的
         await self.request(cmd)
         return self
+

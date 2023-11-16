@@ -183,7 +183,7 @@ class HostService(Service):
         Returns:
             bool: 返回信息
         """
-        res = await self.request(self.HOST_SERIAL, "disconnect", host, port)
+        res = await self.request(self.HOST, "disconnect", host, port)
         return await res.text()
 
     async def forward_list(self) -> list[ForwardRule]:

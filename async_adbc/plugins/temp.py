@@ -1,9 +1,6 @@
 import asyncio
 from dataclasses import dataclass
-from typing import Optional
-
 from dataclasses_json import dataclass_json
-
 from . import Plugin
 
 
@@ -103,9 +100,12 @@ class TempPlugin(Plugin):
         raise FileNotFoundError("没有合适的温度文件读取")
 
     async def _get_temp(self, marks: list[str]):
-        temp_file = await self._get_temp_file(marks)
-        content = await self._device.shell("cat", temp_file)
-        return self._str_to_temp(content)
+        try:
+            temp_file = await self._get_temp_file(marks)
+            content = await self._device.shell("cat", temp_file)
+            return self._str_to_temp(content)
+        except FileNotFoundError:
+            return 0
 
     def is_temp_valid(self, value):
         return -30 <= value <= 250

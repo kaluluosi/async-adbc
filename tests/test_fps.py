@@ -1,30 +1,26 @@
-from async_adbc.plugins.fps import FpsStat, SurfaceNotFoundError
-from tests.testcase import DeviceTestCase
-
-ARM_APK = r"tests\assets\app-armeabi-v7a.apk"
-PKG_NAME = "com.cloudmosa.helloworldapk"
+import asyncio
+from tests.testcase import DeviceTestCase, PKG_NAME,ARM_APK,UNITY_APK,UNITY_PKG_NAME
 
 
 class TestFpsPlugin(DeviceTestCase):
     async def asyncSetUp(self):
         await super().asyncSetUp()
-        # await self.device.pm.install(ARM_APK)
+        await self.device.pm.install(ARM_APK)
+        await self.device.pm.install(UNITY_APK)
 
     async def asyncTearDown(self):
         await super().asyncTearDown()
-        # await self.device.pm.uninstall(PKG_NAME)
+        await self.device.pm.uninstall(PKG_NAME)
+        await self.device.pm.uninstall(UNITY_PKG_NAME)
 
     async def test_fps_not_game(self):
         await self.device.am.start_app(PKG_NAME)
-        with self.assertRaises(SurfaceNotFoundError):
-            stat = await self.device.fps.stat(PKG_NAME)
+        stat = await self.device.fps.stat(PKG_NAME)
+        self.assertEqual(stat.fps,0)
 
     async def test_fps(self):
-        PKG_NAME = "com.xinyuan.w9"
+        await self.device.am.start_app(UNITY_PKG_NAME)
+        await asyncio.sleep(5)
+        stat = await self.device.fps.stat(UNITY_PKG_NAME)
+        self.assertGreater(stat.fps,0)
 
-        while True:
-            stat = await self.device.fps.stat(PKG_NAME)
-            print(stat)
-
-    # todo: fps工具只能抓取游戏视频应用SurfaceView的帧率
-    # 缺乏测试用游戏APP

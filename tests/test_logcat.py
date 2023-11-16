@@ -1,5 +1,3 @@
-from asyncio import StreamReader
-import unittest
 from tests.testcase import DeviceTestCase
 
 

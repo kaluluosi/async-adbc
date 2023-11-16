@@ -1,9 +1,10 @@
 from asyncio import StreamReader
+import asyncio
 from dataclasses import dataclass
 import os
 from stat import S_IFREG
 import struct
-from typing import Callable, Optional
+from typing import Callable, Literal, Optional
 
 from dataclasses_json import dataclass_json
 from async_adbc.protocol import DATA, DONE, FAIL, RECV, SEND, Connection
@@ -45,11 +46,11 @@ class LocalService(Service):
         will go very wrong.
         Note that this is the non-interactive version of "adb shell"
 
-            Args:
-                cmd (str): _description_
+        Args:
+            cmd (str): _description_
 
-            Returns:
-                str: _description_
+        Returns:
+            str: _description_
         """
         args = map(str, args)
         cmd = " ".join([cmd, *args])
@@ -85,38 +86,104 @@ class LocalService(Service):
         return ret
 
     async def adbd_root(self) -> str:
-        res = await self.request("root")
+        res = await self.request("root:")
         ret = await res.reader.read()
         ret = ret.decode().strip()
 
-        if "restarting adbd as root" not in ret:
+        if "adbd is already running as root" == ret or "restarting adbd as root" == ret:
+            return True
+        else:
             raise RuntimeError(ret)
 
-        return ret
 
     async def adbd_unroot(self) -> str:
-        res = await self.request("unroot")
+        res = await self.request("unroot:")
         ret = await res.reader.read()
         ret = ret.decode().strip()
 
-        if "restarting adbd as non root" not in ret:
+        if "restarting adbd as non root" == ret or "adbd not running as root" == ret:
+            return True
+        else:
             raise RuntimeError(ret)
 
-        return ret
 
-    async def reboot(self, option: str = ""):
-        """重启
-
-        等同于：adb reboot
+    async def reboot(self,wait_for:bool=True,timeout:int=60,wait_interval:int=1, option: Optional[Literal["bootloader","recovery","sideload","sideload-auto-reboot"]] = None):
+        """
+        重启设备
 
         Args:
-            option (str): [bootloader|recovery|sideload|sideload-auto-reboot]
+            wait_for (bool, optional): 是否等待重启. Defaults to True.
+            timeout (int, optional): 等待超时，单位秒. Defaults to 60.
+            wait_interval (int, optional): 等待间隔，单位秒. Defaults to 1.
+            option (Optional[Literal[&quot;bootloader&quot;,&quot;recovery&quot;,&quot;sideload&quot;,&quot;sideload, optional): `reboot:`命令的额外参数，对应`adb reboot <option>`. Defaults to None.
 
-        Returns:
-            _type_: _description_
+        Raises:
+            TimeoutError: 超过timeout都没有重启完毕时抛出
         """
+        
+        await self.request("reboot", option)
+        
+        if not wait_for:
+            return 
+        
+        # wait shutdown
+        await self.wait_shutdown(timeout, wait_interval)
+            
+        # wait startup and launcher inited
+        await self.wait_boot_complete(timeout,wait_interval)
+            
 
-        res = await self.request("reboot", option)
+    async def wait_shutdown(self, timeout, wait_interval):
+        """
+        等待设备关机
+
+        Args:
+            timeout (int): 等待超时，单位秒
+            wait_interval (int): 等待间隔，单位秒
+        
+        Raises:
+            TimeoutError: 超过timeout都没有关闭完毕时抛出
+        """
+        while timeout:
+            try:
+                res = await self.shell("dumpsys window windows|grep launcher")
+                if "launcher" in res:
+                    continue
+            except Exception:
+                return
+
+            await asyncio.sleep(wait_interval)
+            timeout -= 1
+
+        # timeout
+        raise TimeoutError("等待关机超时，可能关机失败，或者设备关机时间太长设置的等待时间太短。")
+    
+    async def wait_boot_complete(
+        self, timeout: int = 60, wait_interval: int = 1
+    ):
+        """
+        等待设备启动完毕
+
+        Args:
+            timeout (int, optional): 等待超时，单位秒. Defaults to 60.
+            wait_interval (int, optional): 等待间隔，单位秒. Defaults to 1.
+
+        Raises:
+            TimeoutError: 超过timeout都没有重启完毕时抛出
+        """
+        while timeout:
+            try:
+                res = await self.shell("dumpsys window windows|grep launcher")
+                if "launcher" in res:
+                    return
+            except Exception:
+                pass
+
+            await asyncio.sleep(wait_interval)
+            timeout -= 1
+
+        # timeout
+        raise TimeoutError("等待重启超时，可能重启失败，或者设备重启时间太长设置的等待时间太短。")
 
     async def remount(self):
         """
