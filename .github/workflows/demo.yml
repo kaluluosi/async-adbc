@@ -17,7 +17,18 @@ jobs:
                     key: ${{ runner.os }}-test
             
             -   name: Touch testfile
-                run: touch testfile
+                run: |
+                    touch testfile
+                    echo "shit" >> testfile
+
 
             -   name: Print is cache hitted?
                 run: echo "Is cache hitted? ${{ steps.cache.outputs.cache-hit }}" 
+
+
+            -   name: Upload artifact
+                uses: actions/upload-artifact@v3
+                with:
+                    name: testfile
+                    path: |
+                        testfile
