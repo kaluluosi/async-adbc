@@ -1,5 +1,5 @@
 from async_adbc.plugin import Plugin
-from typing import Optional
+from typing import List, Optional
 from dataclasses import dataclass, field
 from dataclasses_json import dataclass_json
 
@@ -14,7 +14,7 @@ class FpsStat:
     fps: float = 0
     jank: float = 0
     big_jank: float = 0
-    frametimes: list[int] = field(default=list)
+    frametimes: List[int] = field(default=list) # type: ignore
 
 
 class FpsPlugin(Plugin):

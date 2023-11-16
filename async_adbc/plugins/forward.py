@@ -1,8 +1,8 @@
-import typing
+from typing import List,TYPE_CHECKING, Union
 from async_adbc.plugin import Plugin
 
-if typing.TYPE_CHECKING:
-    from async_adbc.adbclient import ForwardRule
+if TYPE_CHECKING:
+    from async_adbc.service.host import ForwardRule
 
 
 class ForwardPlugin(Plugin):
@@ -15,9 +15,9 @@ class ForwardPlugin(Plugin):
         Plugin (_type_): _description_
     """
 
-    async def forward_list(self) -> list["ForwardRule"]:
+    async def forward_list(self) -> List["ForwardRule"]:
         rules = await self._device.adbc.forward_list()
-        rules: list[ForwardRule] = list(
+        rules: List[ForwardRule] = list(
             filter(lambda rule: rule.serialno == self._device.serialno, rules)
         )
         return rules
@@ -27,7 +27,7 @@ class ForwardPlugin(Plugin):
             self._device.serialno, local, remote, norebind
         )
 
-    async def forward_remove(self, local: typing.Union[str, "ForwardRule"]):
+    async def forward_remove(self, local: Union[str, "ForwardRule"]):
         return await self._device.adbc.forward_remove(self._device.serialno, local)
 
     async def forward_remove_all(self):

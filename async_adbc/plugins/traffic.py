@@ -62,8 +62,11 @@ class TrafficPlugin(Plugin):
         """
 
         try:
-            pid = await self._device.get_pid_by_pkgname(package_name)
-            result = await self._device.shell(f"cat /proc/{pid}/net/dev")
+            if package_name:
+                pid = await self._device.get_pid_by_pkgname(package_name)
+                result = await self._device.shell(f"cat /proc/{pid}/net/dev")
+            else:
+                result = await self._device.shell("cat /proc/net/dev")
         except Exception:
             result = await self._device.shell("cat /proc/net/dev")
 

@@ -1,4 +1,3 @@
-import typing
 from .pm import PMPlugin 
 from .prop import PropPlugin
 from .cpu import CPUPlugin
@@ -31,5 +30,4 @@ __all__ = [
    'LogcatPlugin',
    'MinicapPlugin',
    'WMPlugin',
-   'Plugin'
 ]

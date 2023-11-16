@@ -1,7 +1,7 @@
 import asyncio
 from asyncio import StreamReader, StreamWriter
 import struct
-from typing import Any, AsyncGenerator
+from typing import Any, AsyncGenerator, Optional
 
 # adb协议相关参考
 # ref https://github.com/kaluluosi/adbDocumentation/blob/master/README.zh-cn.md
@@ -127,7 +127,7 @@ class Connection:
         await self.writer.drain()
         return Response(self.reader)
 
-    async def message(self, MSG: str, length: int | None = None, data: bytes = b""):
+    async def message(self, MSG: str, length: Optional[int] = None, data: bytes = b""):
         """底层message协议请求接口，用于发送OKAY、SEND等文件传输协议
 
         Args:

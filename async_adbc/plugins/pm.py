@@ -1,6 +1,6 @@
 import os
 import re
-from typing import Any
+from typing import Any, Dict, List, Optional
 
 from async_adbc.service.local import ProgressCallback
 from async_adbc.plugin import Plugin
@@ -32,7 +32,7 @@ class PMPlugin(Plugin):
     UNINSTALL_RESULT_PATTERN = r"(Success|Failure.*|.*Unknown package:.*)"
     CLEAR_RESULT_PATTERN = r"(Success|Failed)"
 
-    async def list_packages(self) -> list[str]:
+    async def list_packages(self) -> List[str]:
         """列出安装的包
 
         等同于： adb shell pm list packages
@@ -53,7 +53,7 @@ class PMPlugin(Plugin):
         return packages
 
     async def install(
-        self, path: str, args="rd", progesss_cb: ProgressCallback | None = None
+        self, path: str, args="rd", progesss_cb: Optional[ProgressCallback] = None
     ):
         """
         将路径path的apk文件推送并用pm install安装到手机里
@@ -83,7 +83,7 @@ class PMPlugin(Plugin):
 
         try:
             res = await self._device.shell(f"pm install {args} {dest}")
-            match: re.Match = re.search(self.INSTALL_RESULT_PATTERN, res)
+            match = re.search(self.INSTALL_RESULT_PATTERN, res)
             if match and match.group(1) == "Success":
                 return True
             elif match:
@@ -156,7 +156,7 @@ class PMPlugin(Plugin):
         else:
             raise ClearError(package_name, res.strip())
 
-    async def list_features(self) -> dict[str, Any]:
+    async def list_features(self) -> Dict[str, Any]:
         """
         列出安卓功能列表（features）
 

@@ -1,11 +1,12 @@
 import re
+from typing import Dict
 
 from async_adbc.plugin import Plugin
 
 
 class PropPlugin(Plugin):
     @property
-    async def properties(self) -> dict[str, str]:
+    async def properties(self) -> Dict[str, str]:
         res = await self._device.shell("getprop")
         result_pattern = "^\[([\s\S]*?)\]: \[([\s\S]*?)\]\r?$"  # type: ignore
         lines = res.splitlines()

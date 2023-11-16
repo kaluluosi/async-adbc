@@ -22,8 +22,7 @@ from async_adbc.plugins import (
     WMPlugin,
 )
 
-if typing.TYPE_CHECKING:
-    from async_adbc.adbclient import ADBClient
+from async_adbc.service.host import HostService
 
 
 class Status(enum.Enum):
@@ -33,7 +32,7 @@ class Status(enum.Enum):
 
 
 class Device(LocalService):
-    def __init__(self, adbc: "ADBClient", serialno: str) -> None:
+    def __init__(self, adbc: HostService, serialno: str) -> None:
         self.adbc = adbc
         self.serialno = serialno
 
@@ -60,7 +59,7 @@ class Device(LocalService):
 
 
     @property
-    async def properties(self) -> dict[str, str]:
+    async def properties(self) -> typing.Dict[str, str]:
         """获取设备props
 
         一些插件要用到所以挪到device里
@@ -94,7 +93,7 @@ class Device(LocalService):
             process_list = [(seq[1], seq[7]) for seq in lines]
             process_list.sort(key=lambda v: v[1], reverse=False)
 
-            return process_list[0][0]
+            return int(process_list[0][0])
 
         else:
             raise ValueError(f"{package_name} 应用没有运行")

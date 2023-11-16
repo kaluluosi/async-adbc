@@ -21,11 +21,11 @@ class MinicapPlugin(Plugin):
             return
 
         props = await self._device.properties
-        abi = props.get("ro.product.cpu.abi")
-        pre_sdk = props.get("ro.build.version.preview_sdk")
-        rel_sdk = props.get("ro.build.version.release")
+        abi = props.get("ro.product.cpu.abi","unknow")
+        pre_sdk = props.get("ro.build.version.preview_sdk","unknow")
+        rel_sdk = props.get("ro.build.version.release","unknow")
         sdk = props.get("ro.build.version.sdk")
-        sdk = int(sdk)
+        sdk = int(sdk or 0)
 
         if pre_sdk.isdigit() and int(pre_sdk) > 0:
             sdk += 1
@@ -34,8 +34,11 @@ class MinicapPlugin(Plugin):
             binfile = "minicap"
         else:
             binfile = "minicap-nopie"
-
         binfile_path = os.path.join(MINICAP_LIBS, abi, binfile)
+        
+        if not os.path.exists(binfile):
+            raise FileNotFoundError(binfile_path, "没有与该设备匹配的minicap")
+        
         await self._device.push(binfile_path, self.PUSH_TO + "/minicap", chmode=0o755)
 
         sofile_path = os.path.join(

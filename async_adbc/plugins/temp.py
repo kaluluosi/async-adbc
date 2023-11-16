@@ -1,5 +1,6 @@
 import asyncio
 from dataclasses import dataclass
+from typing import List
 from dataclasses_json import dataclass_json
 from async_adbc.plugin import Plugin
 
@@ -11,10 +12,10 @@ from async_adbc.plugin import Plugin
 @dataclass_json
 @dataclass
 class TempStat:
-    cpu: int
-    gpu: int
-    npu: int
-    battery: int
+    cpu: float
+    gpu: float
+    npu: float
+    battery: float
 
 
 class TempPlugin(Plugin):
@@ -73,7 +74,7 @@ class TempPlugin(Plugin):
         ]
         return file_type_map
 
-    async def _get_temp_file(self, marks: list[str]):
+    async def _get_temp_file(self, marks: List[str]):
         if not self._thermal_map:
             self._thermal_map = await self._get_thermal_map()
 
@@ -99,7 +100,7 @@ class TempPlugin(Plugin):
                 return self._playback_cpu_temp_file
         raise FileNotFoundError("没有合适的温度文件读取")
 
-    async def _get_temp(self, marks: list[str]):
+    async def _get_temp(self, marks: List[str]):
         try:
             temp_file = await self._get_temp_file(marks)
             content = await self._device.shell("cat", temp_file)

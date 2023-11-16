@@ -1,5 +1,5 @@
 from dataclasses import dataclass
-from typing import Any, AsyncGenerator, Optional, Union
+from typing import Any, AsyncGenerator, List, Optional, Union
 
 from dataclasses_json import dataclass_json
 from async_adbc.service import Service
@@ -71,7 +71,7 @@ class HostService(Service):
         """
         await self.request(self.HOST, "kill")
 
-    async def devices(self, status: Status = Status.DEVICE) -> list[Device]:
+    async def devices(self, status: Status = Status.DEVICE) -> List[Device]:
         """
         获取设备列表
 
@@ -83,7 +83,7 @@ class HostService(Service):
         and a string that will be dumped as-is by the client, then
         the connection is closed
         """
-        devices: list[Device] = []
+        devices: List[Device] = []
         res = await self.request(self.HOST, "devices-l")
         res = await res.text()
         lines = res.split("\n")
@@ -115,7 +115,7 @@ class HostService(Service):
         for dev in devices:
             if dev.serialno == serialno:
                 return dev
-        raise DeviceNotFoundError(serialno)
+        raise DeviceNotFoundError(serialno or "default")
 
     async def devices_track(self) -> AsyncGenerator[DeviceStatusNotification, Any]:
         """追踪设备状态，可以循环读取这个一部生成器，一旦设备状态改编就会返回一个通知消息。
@@ -169,7 +169,7 @@ class HostService(Service):
         Returns:
             bool: true成功，false失败
         """
-        res = await self.request(self.HOST, "connect", host, port)
+        res = await self.request(self.HOST, "connect", host, str(port))
         result = await res.text()
         return "connected" in result
 
@@ -183,10 +183,10 @@ class HostService(Service):
         Returns:
             bool: 返回信息
         """
-        res = await self.request(self.HOST, "disconnect", host, port)
+        res = await self.request(self.HOST, "disconnect", host, str(port))
         return await res.text()
 
-    async def forward_list(self) -> list[ForwardRule]:
+    async def forward_list(self) -> List[ForwardRule]:
         """
         列出当前主机所有的转发规则列表
         adb forward 添加转发的接口在Device对象里，ADBClient只有查看所有转发列表的功能

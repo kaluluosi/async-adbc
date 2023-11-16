@@ -2,7 +2,7 @@ import asyncio
 import re
 import typing
 
-from typing import overload
+from typing import Dict, List, Tuple, overload
 from dataclasses import field, dataclass
 from dataclasses_json import dataclass_json
 
@@ -11,8 +11,8 @@ from async_adbc.plugin import Plugin
 if typing.TYPE_CHECKING:
     from async_adbc.device import Device
 
-CPUStatMap = dict[int, "CPUStat"]
-CPUUsageMap = dict[int, "CPUUsage"]
+CPUStatMap = Dict[int, "CPUStat"]
+CPUUsageMap = Dict[int, "CPUUsage"]
 
 
 @dataclass_json
@@ -22,7 +22,7 @@ class CPUInfo:
     name: str
     abi: str
     core: int
-    freq: tuple[int, int]
+    freq: Tuple[int, int]
 
 
 @dataclass_json
@@ -172,7 +172,7 @@ class CPUPlugin(Plugin):
         return _cpu_count
 
     @property
-    async def freqs(self) -> list[CPUFreq]:
+    async def freqs(self) -> List[CPUFreq]:
         """
         获取所有cpu的 最小最大和当前频率
 
@@ -330,25 +330,37 @@ class CPUPlugin(Plugin):
         return CPUUsage(diff.usage, normalized)
 
     @overload
-    async def get_pid_cpu_stat(self, pkg_name: str) -> ProcessCPUStat:
-        ...
-
-    @overload
-    async def get_pid_cpu_stat(self, pid: int) -> ProcessCPUStat:
-        ...
-
-    async def get_pid_cpu_stat(self, pid) -> ProcessCPUStat:
-        """以pid获取进程cpu状态
+    async def get_pid_cpu_stat(self, pid_or_pkg_name: str) -> ProcessCPUStat:
+        """
+        通过pid或包名获取进程cpu状态
 
         Args:
-            pid (int): 进程pid
+            pid_or_pkg_name (str): 包名
 
         Returns:
             ProcessCPUStat: 进程cpu状态
         """
-        if isinstance(pid, str):
+        ...
+
+    @overload
+    async def get_pid_cpu_stat(self, pid_or_pkg_name: int) -> ProcessCPUStat:
+        """
+        通过pid或包名获取进程cpu状态
+
+        Args:
+            pid_or_pkg_name (int): 进程pid
+
+        Returns:
+            ProcessCPUStat: 进程cpu状态
+        """
+        ...
+
+    async def get_pid_cpu_stat(self, pid_or_pkg_name) -> ProcessCPUStat:
+        pid = pid_or_pkg_name
+        
+        if isinstance(pid_or_pkg_name, str):
             try:
-                pid = await self._device.get_pid_by_pkgname(pid)
+                pid = await self._device.get_pid_by_pkgname(pid_or_pkg_name)
             except Exception:
                 return ProcessCPUStat()
 
@@ -367,17 +379,37 @@ class CPUPlugin(Plugin):
             )
 
     @overload
-    async def get_pid_cpu_usage(self, pid: int) -> CPUUsage:
+    async def get_pid_cpu_usage(self, pid_or_pkg_name: int) -> CPUUsage:
+        """
+        通过pid或包名获取CPU使用率
+
+        Args:
+            pid_or_pkg_name (int): pid
+
+        Returns:
+            CPUUsage: CPU使用率
+        """
         ...
 
     @overload
-    async def get_pid_cpu_usage(self, pid: str) -> CPUUsage:
+    async def get_pid_cpu_usage(self, pid_or_pkg_name: str) -> CPUUsage:
+        """
+        通过pid或包名获取CPU使用率
+
+        Args:
+            pid_or_pkg_name (str): 包名
+
+        Returns:
+            CPUUsage: CPU使用率
+        """
         ...
 
-    async def get_pid_cpu_usage(self, pid) -> CPUUsage:
+    async def get_pid_cpu_usage(self, pid_or_pkg_name) -> CPUUsage:
+        
+        pid = pid_or_pkg_name
         if isinstance(pid, str):
             try:
-                pid = await self._device.get_pid_by_pkgname(pid)
+                pid = await self._device.get_pid_by_pkgname(pid_or_pkg_name)
             except Exception:
                 return CPUUsage()
 
@@ -424,5 +456,5 @@ class CPUPlugin(Plugin):
         freqs = await self.freqs
         freq = freqs[0]
 
-        cpu_info = CPUInfo(platform, cpu_name, abi, core, freq)
+        cpu_info = CPUInfo(platform, cpu_name, abi, core, (freq.min,freq.max))
         return cpu_info
