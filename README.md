@@ -1,5 +1,8 @@
 # ADBC
 
+[![Test-测试](https://github.com/kaluluosi/async-adbc/actions/workflows/test.yml/badge.svg)](https://github.com/kaluluosi/async-adbc/actions/workflows/test.yml)
+
+
 ADBC是ADB Client的纯python异步实现，ADBC直接跟ADB Server通信不需要靠进程调用命令行来执行ADB命令。
 有以下特性：
 1. 支持async/await和同步调用

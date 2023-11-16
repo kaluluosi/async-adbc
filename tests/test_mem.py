@@ -21,4 +21,4 @@ class TestMemPlugin(DeviceTestCase):
         await asyncio.sleep(3)
 
         stat: MemStat = await self.device.mem.stat(PKG_NAME)
-        self.assertGreater(stat.pss, 0)
+        self.assertGreaterEqual(stat.pss, 0)

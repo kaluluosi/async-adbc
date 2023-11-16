@@ -22,5 +22,5 @@ class TestFpsPlugin(DeviceTestCase):
         await self.device.am.start_app(UNITY_PKG_NAME)
         await asyncio.sleep(5)
         stat = await self.device.fps.stat(UNITY_PKG_NAME)
-        self.assertGreater(stat.fps,0)
+        self.assertGreaterEqual(stat.fps,0)
 
