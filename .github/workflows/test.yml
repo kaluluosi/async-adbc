@@ -13,7 +13,7 @@ jobs:
 
     services:
       avd:
-        image: budtmo/docker-android:emulator_13.0
+        image: budtmo/docker-android:emulator_11.0
         ports: 
           - 6080:6080
           - 5554:5554

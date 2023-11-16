@@ -46,7 +46,10 @@ class BatteryPlugin(Plugin):
     async def stat(self) -> BatteryStat:
         res = await self._device.shell("dumpsys battery")
         lines = res.splitlines()
-        start_line = lines.index(self.SESSION)
+        try:
+            start_line = lines.index(self.SESSION)
+        except ValueError:
+            start_line = 0
 
         data = {}
         for line in lines[start_line + 1 :]:
