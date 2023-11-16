@@ -18,7 +18,7 @@ black = "^23.3.0"
 [[tool.poetry.source]]
 name = "tsinghua"
 url = "https://pypi.tuna.tsinghua.edu.cn/simple/"
-default = true
+priority = "default"
 
 [build-system]
 requires = ["poetry-core"]
