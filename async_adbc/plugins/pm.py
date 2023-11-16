@@ -90,7 +90,7 @@ class PMPlugin(Plugin):
                 groups = match.groups()
                 raise InstallError(path, groups)
             else:
-                raise InstallError(path,"android shell 打印:", res)
+                raise InstallError(path, f"android shell 打印:{res}")
 
         finally:
             await self._device.shell(f"rm -f {dest}")
