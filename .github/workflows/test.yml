@@ -63,6 +63,7 @@ jobs:
           poetry run coverage report
 
       - name: Lint with Ruff
+        if: ${{ always() }}
         run: |
           poetry run ruff --output-format=github .
         continue-on-error: true
