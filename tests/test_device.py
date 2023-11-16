@@ -1,3 +1,4 @@
+import asyncio
 import os
 import tempfile
 import unittest
@@ -33,6 +34,7 @@ class TestDevice(DeviceTestCase):
 
         self.assertEqual(len(lines), 2)
 
+    @unittest.skip("这个命令会重启adbd,会导致其他用例失败")
     async def test_tcpip(self):
         ret = await self.device.adbd_tcpip(5555)
         self.assertTrue("restarting in TCP mode port" in ret)
@@ -75,6 +77,7 @@ class TestDevice(DeviceTestCase):
     async def test_get_pid_by_pkgname(self):
         
         await self.device.pm.install(ARM_APK)
+        await asyncio.sleep(3)
         await self.device.am.start_app(PKG_NAME)
         
         pid = await self.device.get_pid_by_pkgname(PKG_NAME)
@@ -85,10 +88,12 @@ class TestDevice(DeviceTestCase):
         
 
 class TestRoot(DeviceTestCase):
+    @unittest.skip("这个命令会重启adbd,会导致其他用例失败")
     async def test_root(self):
         ret = await self.device.adbd_root()
         self.assertEqual(ret, True)
-        
+    
+    @unittest.skip("这个命令会重启adbd,会导致其他用例失败")
     async def test_unroot(self):
         ret = await self.device.adbd_unroot()
         self.assertEqual(ret, True)
@@ -96,12 +101,12 @@ class TestRoot(DeviceTestCase):
 
 class TestReboot(DeviceTestCase):
     
-    @unittest.skip("会导致其他用例失败")
+    @unittest.skip("这个命令会重启adbd,会导致其他用例失败")
     async def test_reboot(self):
         """没抛异常就算成功"""
         await self.device.reboot()
 
-    @unittest.skip("会导致其他用例失败")
+    @unittest.skip("这个命令会重启adbd,会导致其他用例失败")
     async def test_remount(self):
         await self.device.adbd_root()
         await self.device.remount()

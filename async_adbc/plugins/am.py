@@ -20,3 +20,11 @@ class ActivityManagerPlugin(Plugin):
             if package_name not in result:
                 # XXX: 保底再用monkey方案拉起
                 await self._device.shell(f"monkey -p {package_name} -c 'android.intent.category.LAUNCHER' 1")
+
+    async def stop_app(self, package_name: str):
+        """关闭应用
+
+        Args:
+            package_name (str): 包名
+        """
+        await self._device.shell(f"am force-stop {package_name}")

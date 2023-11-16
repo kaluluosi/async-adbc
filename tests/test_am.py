@@ -16,3 +16,7 @@ class TestDeviceAMPlugin(DeviceTestCase):
             f'dumpsys SurfaceFlinger --list|grep "{PKG_NAME}"'
         )
         self.assertTrue(PKG_NAME in result)
+
+    async def test_stopapp(self):
+        await self.device.am.start_app(PKG_NAME)
+        await self.device.am.stop_app(PKG_NAME)

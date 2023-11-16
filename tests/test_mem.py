@@ -1,3 +1,4 @@
+import asyncio
 from async_adbc.plugins.mem import MemStat
 from tests.testcase import DeviceTestCase
 
@@ -20,6 +21,7 @@ class TestMemPlugin(DeviceTestCase):
 
     async def test_stat(self):
         await self.device.am.start_app(PKG_NAME)
+        await asyncio.sleep(3)
 
         stat: MemStat = await self.device.mem.stat(PKG_NAME)
         self.assertGreater(stat.pss, 0)

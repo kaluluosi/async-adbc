@@ -1,3 +1,4 @@
+import asyncio
 from tests.testcase import DeviceTestCase,ARM_APK,PKG_NAME
 
 
@@ -48,6 +49,7 @@ class TestCpuPlugin(DeviceTestCase):
         self.assertGreater(stat.usage, 0)
 
     async def test_total_cpu_usage(self):
+        await self.device.am.start_app("com.anrdroid.chrome")
         usage = await self.device.cpu.total_cpu_usage
         self.assertGreater(usage.usage, 0)
 
@@ -61,6 +63,7 @@ class TestCpuPlugin(DeviceTestCase):
 
     async def test_pid_cpu_usage(self):
         await self.device.am.start_app(PKG_NAME)
+        await asyncio.sleep(2)
         pid = await self.device.get_pid_by_pkgname(PKG_NAME)
         pid_stat = await self.device.cpu.get_pid_cpu_usage(pid)
 

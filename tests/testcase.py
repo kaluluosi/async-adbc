@@ -1,3 +1,4 @@
+import asyncio
 import unittest
 import socket
 
@@ -35,3 +36,5 @@ class DeviceTestCase(unittest.IsolatedAsyncioTestCase):
         self.adbc = ADBClient()
         self.device = await self.adbc.device()
 
+    async def asyncTearDown(self):
+        await asyncio.sleep(3)
