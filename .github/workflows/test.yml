@@ -63,9 +63,32 @@ jobs:
           poetry run python -W ignore -m coverage run -m unittest -v
           poetry run coverage report
 
-      - name: Lint with Ruff
-        if: ${{ always() }}
-        run: |
-          poetry run ruff check --output-format=github ./async_adbc/**/*.py ./tests/**/*.py
-        continue-on-error: true
-      
+  ruff-lint:
+      runs-on: ubuntu-latest
+      steps:
+        - name: Checkout-检出项目
+          uses: actions/checkout@v4
+
+        - name: Install Poetry-安装poetry
+          run: pipx install poetry
+
+        - name: Setup Python-安装python环境
+          uses: actions/setup-python@v4
+          with:
+            python-version: "3.9"
+            cache: 'poetry' # 缓存poetry
+        
+        - name: Update pip
+          run: pip install --upgrade pip
+
+        - name: Install 
+          run: |
+            poetry install
+            poetry show
+
+        - name: Lint with Ruff
+          if: ${{ always() }}
+          run: |
+            poetry run ruff check --output-format=github async_adbc/**/*.py tests/**/*.py
+          continue-on-error: true
+        
