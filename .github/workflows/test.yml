@@ -28,7 +28,7 @@ jobs:
       - name: Wait For AVD To Startup-等待模拟器启动
         uses: jakejarvis/wait-action@v0.1.1
         with:
-          time: '120s'
+          time: '60s'
 
       - name: Checkout-检出项目
         uses: actions/checkout@v4
