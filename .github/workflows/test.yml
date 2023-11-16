@@ -65,6 +65,6 @@ jobs:
       - name: Lint with Ruff
         if: ${{ always() }}
         run: |
-          poetry run ruff --output-format=github .
+          poetry run ruff check --output-format=github ./async_adbc/**/*.py ./tests/**/*.py
         continue-on-error: true
       
