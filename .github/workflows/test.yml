@@ -25,6 +25,11 @@ jobs:
           --device /dev/kvm
         
     steps:
+      - name: Wait For AVD To Startup-等待模拟器启动
+        uses: jakejarvis/wait-action@v0.1.1
+        with:
+          time: '120s'
+
       - name: Checkout-检出项目
         uses: actions/checkout@v4
 
@@ -51,6 +56,7 @@ jobs:
           adb version
           adb devices
           adb shell service list
+          adb shell pm
 
       # - name: Run unittest-运行测试
       #   run: |
