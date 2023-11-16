@@ -31,3 +31,7 @@ jobs:
           poetry install
           poetry show
         
+      - name: Check kvm-ok
+        run: |
+          sudo apt install cpu-checker
+          kvm-ok
