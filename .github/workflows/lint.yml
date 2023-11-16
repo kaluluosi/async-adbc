@@ -18,6 +18,6 @@ jobs:
       - name: Ruff Check
         uses: jpetrucciani/ruff-check@0.1.0
         with:
-            path: async_adbc/
+            path: async_adbc/__init__.py
             format: "github"
       
