@@ -1,5 +1,5 @@
 from dataclasses import dataclass
-from typing import Any, AsyncGenerator, Union
+from typing import Any, AsyncGenerator, Optional, Union
 
 from dataclasses_json import dataclass_json
 from async_adbc.service import Service
@@ -94,7 +94,7 @@ class HostService(Service):
         return devices
 
     async def device(
-        self, serialno: str | None = None, status: Status = Status.DEVICE
+        self, serialno: Optional[str]  = None, status: Status = Status.DEVICE
     ) -> Device:
         """获取指定serialno的设备
 

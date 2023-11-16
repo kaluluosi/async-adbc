@@ -1,3 +1,4 @@
+from typing import Optional
 from async_adbc.plugin import Plugin
 
 
@@ -7,7 +8,7 @@ class UtilsPlugin(Plugin):
 
     """
 
-    async def screencap(self, save_file: str | None = None) -> bytes:
+    async def screencap(self, save_file: Optional[str] = None) -> bytes:
         """原生截屏，效率很慢，建议用minicap代替
 
         Args:

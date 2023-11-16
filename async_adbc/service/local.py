@@ -4,7 +4,7 @@ from dataclasses import dataclass
 import os
 from stat import S_IFREG
 import struct
-from typing import Callable, Literal, Optional
+from typing import Callable, List, Literal, Optional, Union
 
 from dataclasses_json import dataclass_json
 from async_adbc.protocol import DATA, DONE, FAIL, RECV, SEND, Connection
@@ -52,8 +52,8 @@ class LocalService(Service):
         Returns:
             str: _description_
         """
-        args = map(str, args)
-        cmd = " ".join([cmd, *args])
+        str_args = map(str, args)
+        cmd = " ".join([cmd, *str_args])
         res = await self.request("shell", cmd)
         res = await res.reader.read()
         return res.decode().strip()
@@ -76,7 +76,7 @@ class LocalService(Service):
             str: _description_
         """
 
-        res = await self.request("tcpip", port)
+        res = await self.request("tcpip", str(port))
         ret = await res.reader.read()
         ret = ret.decode().strip()
 
@@ -85,29 +85,29 @@ class LocalService(Service):
 
         return ret
 
-    async def adbd_root(self) -> str:
+    async def adbd_root(self):
         res = await self.request("root:")
         ret = await res.reader.read()
         ret = ret.decode().strip()
 
         if "adbd is already running as root" == ret or "restarting adbd as root" == ret:
-            return True
+            return 
         else:
             raise RuntimeError(ret)
 
 
-    async def adbd_unroot(self) -> str:
+    async def adbd_unroot(self):
         res = await self.request("unroot:")
         ret = await res.reader.read()
         ret = ret.decode().strip()
 
         if "restarting adbd as non root" == ret or "adbd not running as root" == ret:
-            return True
+            return 
         else:
             raise RuntimeError(ret)
 
 
-    async def reboot(self,wait_for:bool=True,timeout:int=60,wait_interval:int=1, option: Optional[Literal["bootloader","recovery","sideload","sideload-auto-reboot"]] = None):
+    async def reboot(self,wait_for:bool=True,timeout:int=60,wait_interval:int=1, option: Literal["bootloader","recovery","sideload","sideload-auto-reboot",""] = ""):
         """
         重启设备
 
@@ -305,7 +305,7 @@ class LocalService(Service):
                     error = await _read_data(conn)
                     raise RuntimeError(error.decode())
 
-    async def reverse_list(self) -> list[ReverseRule]:
+    async def reverse_list(self) -> List[ReverseRule]:
         """列出当前设备的反向代理规则列表
 
         返回的一定是当前设备的代理规则。
@@ -359,7 +359,7 @@ class LocalService(Service):
         else:
             await self.request("reverse", "forward", f"{local};{remote}")
 
-    async def reverse_remove(self, local: str | ReverseRule):
+    async def reverse_remove(self, local: Union[str,ReverseRule]):
         """移除反向代理
 
         等同于：adb reverse --remove
