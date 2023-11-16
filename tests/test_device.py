@@ -1,20 +1,20 @@
 import os
-import unittest
 import tempfile
-from async_adbc.adbclient import ADBClient
-from tests.testcase import DeviceTestCase
+import unittest
+from tests.testcase import DeviceTestCase,ARM_APK,PKG_NAME
 
 
 class TestDevice(DeviceTestCase):
-    def setUp(self) -> None:
-        self.adbc = ADBClient()
-
+        
     async def asyncSetUp(self) -> None:
-        self.device = await self.adbc.device()
+        await super().asyncSetUp()
         await self.device.reverse_remove_all()
 
     async def asyncTearDown(self):
-        await self.device.reverse_remove_all()
+        try:
+            await self.device.reverse_remove_all()
+        except Exception:
+            pass
 
     async def test_shell(self):
         ret = await self.device.shell("echo", "hello")
@@ -33,12 +33,11 @@ class TestDevice(DeviceTestCase):
 
         self.assertEqual(len(lines), 2)
 
-    @unittest.skip(reason="")
     async def test_tcpip(self):
         ret = await self.device.adbd_tcpip(5555)
-        self.assertEqual("restarting in TCP mode port" in ret)
+        self.assertTrue("restarting in TCP mode port" in ret)
 
-    @unittest.skip(reason="非root设备一定失败")
+    # @unittest.skip(reason="还有问题，未实现")
     async def test_root(self):
         ret = await self.device.adbd_root()
         self.assertEqual(ret, "restarting in root mode")
@@ -48,7 +47,6 @@ class TestDevice(DeviceTestCase):
         await self.device.reboot()
         await self.device.wait_boot_complete()
 
-    @unittest.skip(reason="非root设备一定失败")
     async def test_remount(self):
         await self.device.remount()
 
@@ -87,6 +85,13 @@ class TestDevice(DeviceTestCase):
         self.assertFalse(rules)
 
     async def test_get_pid_by_pkgname(self):
-        pid = await self.device.get_pid_by_pkgname("com.android.browser")
+        
+        await self.device.pm.install(ARM_APK)
+        await self.device.am.start_app(PKG_NAME)
+        
+        pid = await self.device.get_pid_by_pkgname(PKG_NAME)
 
         self.assertTrue(pid)
+        
+        await self.device.pm.uninstall(PKG_NAME)
+        

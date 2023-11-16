@@ -1,7 +1,24 @@
 import unittest
+import socket
 
 from async_adbc.adbclient import ADBClient
 
+ARM_APK = r"tests\assets\app-armeabi-v7a.apk"
+PKG_NAME = "com.cloudmosa.helloworldapk"
+
+
+def is_docker_android():
+    # is in docker host
+    try:
+        docker_host = "host.docker.internal"
+        socket.gethostbyname(docker_host)
+        with socket.socket() as s:
+            s.connect((docker_host,5555))
+            return True
+    except Exception:
+        return False
+    
+IS_DOCKER_ANDROID = is_docker_android()
 
 class ADBClientTestCase(unittest.IsolatedAsyncioTestCase):
     def setUp(self) -> None:
@@ -12,3 +29,4 @@ class DeviceTestCase(unittest.IsolatedAsyncioTestCase):
     async def asyncSetUp(self):
         self.adbc = ADBClient()
         self.device = await self.adbc.device()
+

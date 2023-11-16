@@ -2,7 +2,7 @@ import asyncio
 import re
 import typing
 
-from typing import Optional, overload
+from typing import overload
 from dataclasses import field, dataclass
 from dataclasses_json import dataclass_json
 
@@ -286,12 +286,10 @@ class CPUPlugin(Plugin):
     @property
     async def total_cpu_stat(self) -> CPUStat:
         """
-        _summary_
-
-        _extended_summary_
+        总cpu状态
 
         Returns:
-            Optional[CPUStat]: _description_
+            Optional[CPUStat]: CPU状态
         """
         pattern = re.compile(
             r"cpu\s+([\d]+)\s([\d]+)\s([\d]+)\s([\d]+)\s([\d]+)\s([\d]+)\s([\d]+)\s([\d]+)\s([\d]+)\s([\d]+)\s"
@@ -313,9 +311,6 @@ class CPUPlugin(Plugin):
         """
         获取总cpu占用率
          获取的是两次采样间隔的cpu使用率，第一获取到的永远是0，你需要再调用一次才能获取到使用率。
-
-        Args:
-            normalized (bool, optional): 标准化占有率. Defaults to False.
 
         Returns:
             CPUUsage: CPU使用率
@@ -354,7 +349,7 @@ class CPUPlugin(Plugin):
         if isinstance(pid, str):
             try:
                 pid = await self._device.get_pid_by_pkgname(pid)
-            except:
+            except Exception:
                 return ProcessCPUStat()
 
         result = await self._device.shell(f"cat /proc/{pid}/stat")
@@ -383,7 +378,7 @@ class CPUPlugin(Plugin):
         if isinstance(pid, str):
             try:
                 pid = await self._device.get_pid_by_pkgname(pid)
-            except:
+            except Exception:
                 return CPUUsage()
 
         normalize_factor = await self.normalize_factor

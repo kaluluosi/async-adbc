@@ -75,7 +75,7 @@ class Device(LocalService):
                 res = await self.shell("echo", "hello")
                 if res == "hello":
                     return True
-            except:
+            except Exception:
                 pass
 
             await asyncio.sleep(wait_interval)
@@ -133,4 +133,4 @@ class Device(LocalService):
             bool: true 存在， false不存在
         """
         res = await self.shell("ls", file_path)
-        return not ("No such file or directory" in res)
+        return "No such file or directory" not in res

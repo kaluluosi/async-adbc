@@ -1,9 +1,4 @@
-import asyncio
-from tests.testcase import DeviceTestCase
-
-ARM_APK = r"tests\assets\app-armeabi-v7a.apk"
-PKG_NAME = "com.cloudmosa.helloworldapk"
-
+from tests.testcase import DeviceTestCase,ARM_APK,PKG_NAME
 
 class TestDeviceAMPlugin(DeviceTestCase):
     async def asyncSetUp(self):
