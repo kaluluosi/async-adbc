@@ -1,10 +1,13 @@
 from dataclasses import dataclass
-from typing import Any, AsyncGenerator, List, Optional, Union
+from typing import TYPE_CHECKING, Any, AsyncGenerator, List, Optional, Union, cast
 
 from dataclasses_json import dataclass_json
 from async_adbc.service import Service
 from async_adbc.device import Device, Status
 from async_adbc.protocol import Connection
+
+if TYPE_CHECKING:
+    from async_adbc.adbclient import ADBClient
 
 
 class DeviceNotFoundError(Exception):
@@ -90,7 +93,8 @@ class HostService(Service):
         devices_infos = [line.split() for line in lines if line]
         for device_info in devices_infos:
             if device_info[1] == status.value:
-                devices.append(Device(self, device_info[0]))
+                adbclient = cast("ADBClient", self) # 用cast来解决类型检查
+                devices.append(Device(adbclient, device_info[0]))
         return devices
 
     async def device(

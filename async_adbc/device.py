@@ -22,7 +22,9 @@ from async_adbc.plugins import (
     WMPlugin,
 )
 
-from async_adbc.service.host import HostService
+
+if typing.TYPE_CHECKING:
+    from async_adbc.adbclient import ADBClient
 
 
 class Status(enum.Enum):
@@ -32,7 +34,7 @@ class Status(enum.Enum):
 
 
 class Device(LocalService):
-    def __init__(self, adbc: HostService, serialno: str) -> None:
+    def __init__(self, adbc: "ADBClient", serialno: str) -> None:
         self.adbc = adbc
         self.serialno = serialno
 
