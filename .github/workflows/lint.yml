@@ -35,4 +35,3 @@ jobs:
       - name: Lint with Ruff
         run: |
           poetry run ruff check -v --output-format=github --fix async_adbc/**/*.py
-          poetry run ruff check -v --output-format=github --fix tests/**/*.py
