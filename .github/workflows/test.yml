@@ -16,6 +16,8 @@ jobs:
         image: budtmo/docker-android:emulator_11.0
         ports: 
           - 6080:6080
+          - 5554:5554
+          - 5555:5555
         env:
           EMULATOR_DEVICE: "Samsung Galaxy S10"
           WEB_VNC: false
@@ -47,3 +49,5 @@ jobs:
         run: |
           sudo apt-get install -y adb
           adb version
+          adb connect avd:5555
+          adb shell ls
