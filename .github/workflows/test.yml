@@ -20,10 +20,10 @@ jobs:
           - 5555:5555
         env:
           EMULATOR_DEVICE: "Samsung Galaxy S10"
-          WEB_VNC: false
+          WEB_VNC: true
         options:
           --device /dev/kvm
-
+        
     steps:
       - name: Checkout-检出项目
         uses: actions/checkout@v4
