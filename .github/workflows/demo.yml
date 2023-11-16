@@ -25,10 +25,10 @@ jobs:
             -   name: Print is cache hitted?
                 run: echo "Is cache hitted? ${{ steps.cache.outputs.cache-hit }}" 
 
-
-            -   name: Upload artifact
-                uses: actions/upload-artifact@v3
+            -   name: Download testfile
+                uses: actions/download-artifact@v3
                 with:
                     name: testfile
-                    path: |
-                        testfile
+
+            -   name: List files
+                run: ls -la
