@@ -14,6 +14,16 @@ dataclasses-json = "^0.5.7"
 [tool.ruff]
 include = ["async_adbc", "tests"]
 
+[tool.ruff.lint]
+fixable = ["ALL"]
+
+[tool.ruff.format]
+# Like Black, use double quotes for strings.
+quote-style = "double"
+
+# Like Black, indent with spaces, rather than tabs.
+indent-style = "space"
+
 [tool.poetry.group.dev.dependencies]
 ruff = "^0.1.5"
 coverage = "^7.3.2"

@@ -15,24 +15,9 @@ jobs:
       - name: Checkout-检出项目
         uses: actions/checkout@v4
 
-      - name: Install Poetry-安装poetry
-        run: pipx install poetry
-
-      - name: Setup Python-安装python环境
-        uses: actions/setup-python@v4
+      - name: Ruff Check
+        uses: jpetrucciani/ruff-check@0.1.0
         with:
-          python-version: "3.9"
-          cache: 'poetry' # 缓存poetry
-      
-      - name: Update pip
-        run: pip install --upgrade pip
-
-      - name: Install 
-        run: |
-          poetry install
-          poetry show
-
-      - name: Lint with Ruff
-        run: |
-          poetry run ruff check --output-format=github **/*
+            path: async_adbc/
+            format: "github"
       
