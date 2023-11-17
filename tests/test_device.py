@@ -76,8 +76,9 @@ class TestDevice(DeviceTestCase):
     async def test_get_pid_by_pkgname(self):
         
         await self.device.pm.install(ARM_APK)
-        await asyncio.sleep(3)
+        await asyncio.sleep(1)
         await self.device.am.start_app(PKG_NAME)
+        await asyncio.sleep(1)
         
         pid = await self.device.get_pid_by_pkgname(PKG_NAME)
 
