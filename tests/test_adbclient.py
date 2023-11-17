@@ -37,7 +37,7 @@ class TestAsyncADBClient(ADBClientTestCase):
 
 
 class TestForward(ADBClientTestCase):
-    async def asyncSetUp(self) -> Coroutine[Any, Any, None]:
+    async def asyncSetUp(self):
         await self.adbc.forward_remove_all()
 
     async def test_forward(self):
