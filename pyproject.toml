@@ -11,9 +11,6 @@ python = "^3.8"
 dataclasses-json = "^0.5.7"
 
 
-[tool.ruff]
-include = ["async_adbc", "tests"]
-
 [tool.ruff.lint]
 fixable = ["ALL"]
 
