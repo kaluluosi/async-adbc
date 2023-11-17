@@ -15,6 +15,7 @@ class TestFpsPlugin(DeviceTestCase):
 
     async def test_fps_not_game(self):
         await self.device.am.start_app(PKG_NAME)
+        await asyncio.sleep(1)
         stat = await self.device.fps.stat(PKG_NAME)
         self.assertEqual(stat.fps,0)
 
