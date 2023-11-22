@@ -15,10 +15,7 @@ on:
 
 jobs:
     test:
-      runs-on: ubuntu-latest
-      steps:
-        - name: 发布前测试
-          uses: ./.github/workflows/test.yml
+        uses: ./.github/workflows/test.yml
 
     deploy:
         runs-on: ubuntu-latest
