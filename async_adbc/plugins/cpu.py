@@ -242,9 +242,21 @@ class CPUPlugin(Plugin):
         cpu_state_info = await self._device.shell("cat /proc/stat")
         matches = pattern.findall(cpu_state_info)
 
+        values = [list(map(lambda x: int(x), group[1:])) for group in matches]
         all_cpu_state = {
-            int(group[0]): CPUStat.model_validate(map(lambda x: int(x), group[1:]))
-            for group in matches
+            index: CPUStat(
+                user=value[0],
+                nice=value[1],
+                system=value[2],
+                idle=value[3],
+                iowait=value[4],
+                irq=value[5],
+                softirq=value[6],
+                stealstolen=value[7],
+                guest=value[8],
+                guest_nice=value[9],
+            )
+            for index, value in enumerate(values)
         }
         return all_cpu_state
 
@@ -292,7 +304,19 @@ class CPUPlugin(Plugin):
         if match is None or len(match.groups()) != 10:
             raise RuntimeError("无法从 /proc/stat 中获取cpu统计")
         else:
-            cpu_stat = CPUStat.model_validate(map(lambda x: int(x), match.groups()))
+            value = list(map(lambda x: int(x), match.groups()))
+            cpu_stat = CPUStat(
+                user=value[0],
+                nice=value[1],
+                system=value[2],
+                idle=value[3],
+                iowait=value[4],
+                irq=value[5],
+                softirq=value[6],
+                stealstolen=value[7],
+                guest=value[8],
+                guest_nice=value[9],
+            )
 
         return cpu_stat
 
