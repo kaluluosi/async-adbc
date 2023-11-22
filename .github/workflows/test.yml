@@ -8,6 +8,7 @@ on:
       - ".github/**"
   pull_request:
   workflow_dispatch: # 手动执行测试
+  workflow_call:
 
 
 jobs:
