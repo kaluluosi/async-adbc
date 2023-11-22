@@ -3,7 +3,7 @@ import re
 import typing
 
 from typing import Dict, List, Tuple, overload
-from pydantic import BaseModel, Field, ConfigDict
+from pydantic import BaseModel, Field
 
 from async_adbc.plugin import Plugin
 
@@ -243,7 +243,7 @@ class CPUPlugin(Plugin):
         matches = pattern.findall(cpu_state_info)
 
         all_cpu_state = {
-            int(group[0]): CPUStat.model_validate(*map(lambda x: int(x), group[1:]))
+            int(group[0]): CPUStat.model_validate(map(lambda x: int(x), group[1:]))
             for group in matches
         }
         return all_cpu_state
@@ -292,7 +292,7 @@ class CPUPlugin(Plugin):
         if match is None or len(match.groups()) != 10:
             raise RuntimeError("无法从 /proc/stat 中获取cpu统计")
         else:
-            cpu_stat = CPUStat.model_validate(*map(lambda x: int(x), match.groups()))
+            cpu_stat = CPUStat.model_validate(map(lambda x: int(x), match.groups()))
 
         return cpu_stat
 
