@@ -330,7 +330,7 @@ class LocalService(Service):
                 continue
 
             _type, remote, local = line.split()
-            reverses.append(ReverseRule(type=_type, remote=remote, local=local))
+            reverses.append(ReverseRule(type=_type, local=remote, remote=local))
 
         return reverses
 
