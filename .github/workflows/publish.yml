@@ -7,6 +7,12 @@ on:
         types: [published]
 
     workflow_dispatch:
+      inputs:
+        version:
+          description: 'Release version'
+          required: true
+          type: string
+
 jobs:
     test:
       runs-on: ubuntu-latest
@@ -31,7 +37,12 @@ jobs:
               run: pipx install poetry
             
             - name: 将Tag版本号填写到toml配置中
+              if: ${{github.event.release.tag_name}}
               run: poetry version ${{github.event.release.tag_name}}
+
+            - name: 将version参数更新到toml配置中
+              if: ${{github.event.inputs.version}}
+              run: poetry version ${{github.event.inputs.version}}
             
             - name: Install dependencies
               run: |
