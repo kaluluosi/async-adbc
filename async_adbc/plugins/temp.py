@@ -1,17 +1,14 @@
 import asyncio
-from dataclasses import dataclass
 from typing import List
-from dataclasses_json import dataclass_json
 from async_adbc.plugin import Plugin
+from pydantic import BaseModel
 
 
-# 如果兼容性实在不行考虑去借鉴solopi
+# XXX: 如果兼容性实在不行考虑去借鉴solopi
 # https://github.com/alipay/SoloPi/blob/ac684afdb1eb654dc27a2710e3c1e5ac25a9c43d/src/shared/src/main/java/com/alipay/hulu/shared/display/items/TemperatureTools.java#L33
 
 
-@dataclass_json
-@dataclass
-class TempStat:
+class TempStat(BaseModel):
     cpu: float
     gpu: float
     npu: float
@@ -121,7 +118,12 @@ class TempPlugin(Plugin):
             cpu_temp, gpu_temp, npu_temp, battery_temp
         )
 
-        return TempStat(cpu_temp, gpu_temp, npu_temp, battery_temp)
+        return TempStat(
+            cpu=cpu_temp,
+            gpu=gpu_temp,
+            npu=npu_temp,
+            battery=battery_temp,
+        )
 
     def _str_to_temp(self, txt: str):
         """字符串数值转摄氏度

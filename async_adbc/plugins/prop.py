@@ -10,7 +10,7 @@ class PropPlugin(Plugin):
         res = await self._device.shell("getprop")
         result_pattern = "^\[([\s\S]*?)\]: \[([\s\S]*?)\]\r?$"  # type: ignore
         lines = res.splitlines()
-        properties = defaultdict(lambda:"")
+        properties = defaultdict(lambda: "")
         for line in lines:
             m = re.match(result_pattern, line)
             if m:

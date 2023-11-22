@@ -1,4 +1,4 @@
-from typing import List,TYPE_CHECKING, Union
+from typing import List, TYPE_CHECKING, Union
 from async_adbc.plugin import Plugin
 
 if TYPE_CHECKING:

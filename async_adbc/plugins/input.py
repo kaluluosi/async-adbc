@@ -1,7 +1,8 @@
 from async_adbc.plugin import Plugin
+from typing import NamedTuple
 
 
-class Source:
+class Source(NamedTuple):
     KEYBOARD = "keyboard"
     MOUSE = "mouse"
     JOYSTICK = "joystick"
@@ -15,5 +16,5 @@ class Source:
 
 
 class Input(Plugin):
+    # TODO: 按键模拟输入这部分还没有实现
     raise NotImplementedError("未实现")
-    pass

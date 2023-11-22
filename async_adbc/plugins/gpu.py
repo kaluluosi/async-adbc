@@ -1,11 +1,8 @@
-from dataclasses import dataclass
-from dataclasses_json import dataclass_json
 from async_adbc.plugin import Plugin
+from pydantic import BaseModel
 
 
-@dataclass_json
-@dataclass
-class GPUInfo:
+class GPUInfo(BaseModel):
     manufactor: str
     name: str
     opengl: str
@@ -20,4 +17,4 @@ class GPUPlugin(Plugin):
         manufactor = manufactor.strip()
         name = name.strip()
         opengl = opengl.strip()
-        return GPUInfo(manufactor, name, opengl)
+        return GPUInfo(manufactor=manufactor, name=name, opengl=opengl)

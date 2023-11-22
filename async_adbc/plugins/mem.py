@@ -1,27 +1,21 @@
-from dataclasses import dataclass, field
 import re
-from dataclasses_json import dataclass_json
-
+from pydantic import BaseModel, Field
 from async_adbc.plugin import Plugin
 
 
-@dataclass_json
-@dataclass
-class MemInfo:
+class MemInfo(BaseModel):
     mem_total: int  # 内存大小
     swap_total: int  # 交换页大小
 
 
-@dataclass_json
-@dataclass
-class MemStat:
-    pss: int = field(default=0)
-    private_dirty: int = field(default=0)
-    private_clean: int = field(default=0)
-    swapped_dirty: int = field(default=0)
-    heap_size: int = field(default=0)
-    heap_alloc: int = field(default=0)
-    heap_free: int = field(default=0)
+class MemStat(BaseModel):
+    pss: int = Field(default=0)
+    private_dirty: int = Field(default=0)
+    private_clean: int = Field(default=0)
+    swapped_dirty: int = Field(default=0)
+    heap_size: int = Field(default=0)
+    heap_alloc: int = Field(default=0)
+    heap_free: int = Field(default=0)
 
 
 class MemPlugin(Plugin):
@@ -45,7 +39,7 @@ class MemPlugin(Plugin):
         mem_total = mem_total_match.group() if mem_total_match else 0
         swap_total = swap_total_match.group() if swap_total_match else 0
 
-        return MemInfo(int(mem_total), int(swap_total))
+        return MemInfo(mem_total=int(mem_total), swap_total=int(swap_total))
 
     async def stat(self, package_name: str) -> MemStat:
         """
