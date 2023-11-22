@@ -3,6 +3,8 @@ run-name: ${{github.actor}} Lint - ${{github.ref_name}}
 
 on: 
   push:
+    paths-ignore:
+      - ".github/**"
   pull_request:
   workflow_dispatch: # 手动执行测试
 
