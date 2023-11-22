@@ -1,7 +1,5 @@
-from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any, AsyncGenerator, List, Optional, Union, cast
-
-from dataclasses_json import dataclass_json
+from pydantic import BaseModel
 from async_adbc.service import Service
 from async_adbc.device import Device, Status
 from async_adbc.protocol import Connection
@@ -15,16 +13,12 @@ class DeviceNotFoundError(Exception):
         super().__init__(f"{serialno} 不存在", *args)
 
 
-@dataclass_json
-@dataclass
-class DeviceStatusNotification:
+class DeviceStatusNotification(BaseModel):
     serialno: str
     status: Status
 
 
-@dataclass_json
-@dataclass
-class ForwardRule:
+class ForwardRule(BaseModel):
     serialno: str
     local: str
     remote: str
@@ -42,7 +36,9 @@ class HostService(Service):
     """
 
     HOST = "host"  # 当devices只有一个设备的时候，将指令默认发给这个设备，如果存在多个设备，会失败
-    HOST_SERIAL = "host-serial"  # 将指令定向发送到序号serial的设备， 等同于 `adb -s <设备序号>`
+    HOST_SERIAL = (
+        "host-serial"  # 将指令定向发送到序号serial的设备， 等同于 `adb -s <设备序号>`
+    )
     # HOST_USB = "host-usb"  # 只有一台设备以usb连接时，将指令默认发给这个usb设备， adb命令中没有对应的用法
     # HOST_LOCAL = "host-local"  # 只有一台模拟器设备连接的时候，将指令默认发给这个模拟器设备，adb命令没有对应的用法
 
@@ -93,12 +89,12 @@ class HostService(Service):
         devices_infos = [line.split() for line in lines if line]
         for device_info in devices_infos:
             if device_info[1] == status.value:
-                adbclient = cast("ADBClient", self) # 用cast来解决类型检查
+                adbclient = cast("ADBClient", self)  # 用cast来解决类型检查
                 devices.append(Device(adbclient, device_info[0]))
         return devices
 
     async def device(
-        self, serialno: Optional[str]  = None, status: Status = Status.DEVICE
+        self, serialno: Optional[str] = None, status: Status = Status.DEVICE
     ) -> Device:
         """获取指定serialno的设备
 
@@ -145,7 +141,9 @@ class HostService(Service):
             if notify:
                 notify = notify.strip()
                 notify = notify.split()
-                yield DeviceStatusNotification(notify[0], Status(notify[1]))
+                yield DeviceStatusNotification(
+                    serialno=notify[0], status=Status(notify[1])
+                )
 
     async def transport(self, serialno: str) -> Connection:
         """
@@ -205,7 +203,7 @@ class HostService(Service):
         for line in lines:
             if line:
                 serialno, local, remote = line.split()
-                rules.append(ForwardRule(serialno, local, remote))
+                rules.append(ForwardRule(serialno=serialno, local=local, remote=remote))
 
         return rules
 

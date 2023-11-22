@@ -1,20 +1,17 @@
 from async_adbc.plugin import Plugin
 from typing import List, Optional
-from dataclasses import dataclass, field
-from dataclasses_json import dataclass_json
+from pydantic import BaseModel, Field
 
 
 class SurfaceNotFoundError(Exception):
     ...
 
 
-@dataclass_json
-@dataclass
-class FpsStat:
+class FpsStat(BaseModel):
     fps: float = 0
     jank: float = 0
     big_jank: float = 0
-    frametimes: List[int] = field(default=list) # type: ignore
+    frametimes: List[int] = Field(default=list)  # type: ignore
 
 
 class FpsPlugin(Plugin):
@@ -57,7 +54,7 @@ class FpsPlugin(Plugin):
             FpsStat: 帧率数据
         """
 
-        data = FpsStat(0, 0, 0, [])
+        data = FpsStat(fps=0, jank=0, big_jank=0, frametimes=[])
 
         surface_view = await self.get_surface_view(package_name)
 
@@ -72,9 +69,9 @@ class FpsPlugin(Plugin):
             return data
 
         fps = self._calc_fps(data_table, refresh_period)
-        jank, big_jank, frametime = self._calc_jank(data_table, refresh_period)
+        jank, big_jank, frametimes = self._calc_jank(data_table, refresh_period)
 
-        return FpsStat(fps, jank, big_jank, frametime)
+        return FpsStat(fps=fps, jank=jank, big_jank=big_jank, frametimes=frametimes)
 
     def _parse_data(self, result: str):
         lines = result.strip().split("\n")

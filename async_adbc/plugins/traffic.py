@@ -1,16 +1,13 @@
 import typing
 from async_adbc.plugin import Plugin
 from typing import Optional, overload
-from dataclasses import dataclass
-from dataclasses_json import dataclass_json
+from pydantic import BaseModel
 
 if typing.TYPE_CHECKING:
     from async_adbc.device import Device
 
 
-@dataclass_json
-@dataclass
-class TrafficStat:
+class TrafficStat(BaseModel):
     """
     流量统计，单位byte
 
@@ -23,12 +20,12 @@ class TrafficStat:
     def __sub__(self, other: "TrafficStat"):
         receive = self.receive - other.receive
         send = self.send - other.send
-        return TrafficStat(receive, send)
+        return TrafficStat(receive=receive, send=send)
 
     def __add__(self, other: "TrafficStat"):
         receive = self.receive + other.receive
         send = self.send + other.send
-        return TrafficStat(receive, send)
+        return TrafficStat(receive=receive, send=send)
 
 
 class TrafficPlugin(Plugin):
@@ -76,7 +73,7 @@ class TrafficPlugin(Plugin):
         wlan0 = table[self.WAN0]
         receive = int(wlan0[0])
         send = int(wlan0[8])
-        new_stat = TrafficStat(receive, send)
+        new_stat = TrafficStat(receive=receive, send=send)
 
         if self._last_stat is None:
             self._last_stat = new_stat

@@ -3,8 +3,7 @@ import re
 import typing
 
 from typing import Dict, List, Tuple, overload
-from dataclasses import field, dataclass
-from dataclasses_json import dataclass_json
+from pydantic import BaseModel, Field
 
 from async_adbc.plugin import Plugin
 
@@ -15,9 +14,7 @@ CPUStatMap = Dict[int, "CPUStat"]
 CPUUsageMap = Dict[int, "CPUUsage"]
 
 
-@dataclass_json
-@dataclass
-class CPUInfo:
+class CPUInfo(BaseModel):
     platform: str
     name: str
     abi: str
@@ -25,24 +22,18 @@ class CPUInfo:
     freq: Tuple[int, int]
 
 
-@dataclass_json
-@dataclass
-class CPUUsage:
-    usage: float = field(default=0.0)
-    normalized: float = field(default=0.0)
+class CPUUsage(BaseModel):
+    usage: float = Field(default=0.0)
+    normalized: float = Field(default=0.0)
 
 
-@dataclass_json
-@dataclass
-class CPUFreq:
+class CPUFreq(BaseModel):
     min: int
     cur: int
     max: int
 
 
-@dataclass_json
-@dataclass
-class CPUStat:
+class CPUStat(BaseModel):
     user: float = 0
     nice: float = 0
     system: float = 0
@@ -116,9 +107,7 @@ class CPUStat:
         return ", ".join("%s: %s" % item for item in attrs.items())
 
 
-@dataclass_json
-@dataclass
-class ProcessCPUStat:
+class ProcessCPUStat(BaseModel):
     name: str = ""
     utime: int = 0
     stime: int = 0
@@ -126,7 +115,7 @@ class ProcessCPUStat:
     cstime: int = 0
 
     def __add__(self, other: "ProcessCPUStat"):
-        summary = ProcessCPUStat(self.name)
+        summary = ProcessCPUStat(name=self.name)
         summary.utime = self.utime + other.utime
         summary.stime = self.stime + other.stime
         summary.cutime = self.cutime + other.cutime
@@ -134,7 +123,7 @@ class ProcessCPUStat:
         return summary
 
     def __sub__(self, other: "ProcessCPUStat"):
-        result = ProcessCPUStat(self.name)
+        result = ProcessCPUStat(name=self.name)
         result.utime = self.utime - other.utime
         result.stime = self.stime - other.stime
         result.cutime = self.cutime - other.cutime
@@ -197,7 +186,8 @@ class CPUPlugin(Plugin):
 
         freq_list = await asyncio.gather(*coroutines)
         self._freqs = [
-            CPUFreq(int(min), int(cur), int(max)) for (min, cur, max) in freq_list
+            CPUFreq(min=int(min), cur=int(cur), max=int(max))
+            for (min, cur, max) in freq_list
         ]
 
         return self._freqs
@@ -252,9 +242,21 @@ class CPUPlugin(Plugin):
         cpu_state_info = await self._device.shell("cat /proc/stat")
         matches = pattern.findall(cpu_state_info)
 
+        values = [list(map(lambda x: int(x), group[1:])) for group in matches]
         all_cpu_state = {
-            int(group[0]): CPUStat(*map(lambda x: int(x), group[1:]))
-            for group in matches
+            index: CPUStat(
+                user=value[0],
+                nice=value[1],
+                system=value[2],
+                idle=value[3],
+                iowait=value[4],
+                irq=value[5],
+                softirq=value[6],
+                stealstolen=value[7],
+                guest=value[8],
+                guest_nice=value[9],
+            )
+            for index, value in enumerate(values)
         }
         return all_cpu_state
 
@@ -280,7 +282,7 @@ class CPUPlugin(Plugin):
             cpu_diff: CPUStat = stat - last_cpu_stat
             usage = round(cpu_diff.usage, 2)
             normalized = usage * normalize_factor
-            cpu_usage[index] = CPUUsage(usage, normalized)
+            cpu_usage[index] = CPUUsage(usage=usage, normalized=normalized)
         return cpu_usage
 
     @property
@@ -302,7 +304,19 @@ class CPUPlugin(Plugin):
         if match is None or len(match.groups()) != 10:
             raise RuntimeError("无法从 /proc/stat 中获取cpu统计")
         else:
-            cpu_stat = CPUStat(*map(lambda x: int(x), match.groups()))
+            value = list(map(lambda x: int(x), match.groups()))
+            cpu_stat = CPUStat(
+                user=value[0],
+                nice=value[1],
+                system=value[2],
+                idle=value[3],
+                iowait=value[4],
+                irq=value[5],
+                softirq=value[6],
+                stealstolen=value[7],
+                guest=value[8],
+                guest_nice=value[9],
+            )
 
         return cpu_stat
 
@@ -327,7 +341,7 @@ class CPUPlugin(Plugin):
         normalize_factor = await self.normalize_factor
         normalized = diff.usage * normalize_factor
 
-        return CPUUsage(diff.usage, normalized)
+        return CPUUsage(usage=diff.usage, normalized=normalized)
 
     @overload
     async def get_pid_cpu_stat(self, pid_or_pkg_name: str) -> ProcessCPUStat:
@@ -357,7 +371,7 @@ class CPUPlugin(Plugin):
 
     async def get_pid_cpu_stat(self, pid_or_pkg_name) -> ProcessCPUStat:
         pid = pid_or_pkg_name
-        
+
         if isinstance(pid_or_pkg_name, str):
             try:
                 pid = await self._device.get_pid_by_pkgname(pid_or_pkg_name)
@@ -371,11 +385,11 @@ class CPUPlugin(Plugin):
         else:
             items = result.split()
             return ProcessCPUStat(
-                items[1],
-                int(items[13]),
-                int(items[14]),
-                int(items[15]),
-                int(items[16]),
+                name=items[1],
+                utime=int(items[13]),
+                stime=int(items[14]),
+                cutime=int(items[15]),
+                cstime=int(items[16]),
             )
 
     @overload
@@ -405,7 +419,6 @@ class CPUPlugin(Plugin):
         ...
 
     async def get_pid_cpu_usage(self, pid_or_pkg_name) -> CPUUsage:
-        
         pid = pid_or_pkg_name
         if isinstance(pid, str):
             try:
@@ -428,7 +441,7 @@ class CPUPlugin(Plugin):
         app_cpu_usage = pid_diff.total / cpu_diff.total * 100
 
         normalized = app_cpu_usage * normalize_factor
-        return CPUUsage(app_cpu_usage, normalized)
+        return CPUUsage(usage=app_cpu_usage, normalized=normalized)
 
     @property
     async def cpu_name(self) -> str:
@@ -456,5 +469,11 @@ class CPUPlugin(Plugin):
         freqs = await self.freqs
         freq = freqs[0]
 
-        cpu_info = CPUInfo(platform, cpu_name, abi, core, (freq.min,freq.max))
+        cpu_info = CPUInfo(
+            platform=platform,
+            name=cpu_name,
+            abi=abi,
+            core=core,
+            freq=(freq.min, freq.max),
+        )
         return cpu_info

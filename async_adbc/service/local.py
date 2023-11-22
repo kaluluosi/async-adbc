@@ -1,21 +1,18 @@
-from asyncio import StreamReader
 import asyncio
-from dataclasses import dataclass
 import os
-from stat import S_IFREG
 import struct
-from typing import Callable, List, Literal, Optional, Union
 
-from dataclasses_json import dataclass_json
+from asyncio import StreamReader
+from stat import S_IFREG
+from typing import Callable, List, Literal, Optional, Union
+from pydantic import BaseModel
 from async_adbc.protocol import DATA, DONE, FAIL, RECV, SEND, Connection
 from async_adbc.service import Service
 
 ProgressCallback = Callable[[str, int, int], None]
 
 
-@dataclass_json
-@dataclass
-class ReverseRule:
+class ReverseRule(BaseModel):
     type: str
     local: str
     remote: str
@@ -91,10 +88,9 @@ class LocalService(Service):
         ret = ret.decode().strip()
 
         if "adbd is already running as root" == ret or "restarting adbd as root" == ret:
-            return 
+            return
         else:
             raise RuntimeError(ret)
-
 
     async def adbd_unroot(self):
         res = await self.request("unroot:")
@@ -102,12 +98,19 @@ class LocalService(Service):
         ret = ret.decode().strip()
 
         if "restarting adbd as non root" == ret or "adbd not running as root" == ret:
-            return 
+            return
         else:
             raise RuntimeError(ret)
 
-
-    async def reboot(self,wait_for:bool=True,timeout:int=60,wait_interval:int=1, option: Literal["bootloader","recovery","sideload","sideload-auto-reboot",""] = ""):
+    async def reboot(
+        self,
+        wait_for: bool = True,
+        timeout: int = 60,
+        wait_interval: int = 1,
+        option: Literal[
+            "bootloader", "recovery", "sideload", "sideload-auto-reboot", ""
+        ] = "",
+    ):
         """
         重启设备
 
@@ -120,18 +123,17 @@ class LocalService(Service):
         Raises:
             TimeoutError: 超过timeout都没有重启完毕时抛出
         """
-        
+
         await self.request("reboot", option)
-        
+
         if not wait_for:
-            return 
-        
+            return
+
         # wait shutdown
         await self.wait_shutdown(timeout, wait_interval)
-            
+
         # wait startup and launcher inited
-        await self.wait_boot_complete(timeout,wait_interval)
-            
+        await self.wait_boot_complete(timeout, wait_interval)
 
     async def wait_shutdown(self, timeout, wait_interval):
         """
@@ -140,7 +142,7 @@ class LocalService(Service):
         Args:
             timeout (int): 等待超时，单位秒
             wait_interval (int): 等待间隔，单位秒
-        
+
         Raises:
             TimeoutError: 超过timeout都没有关闭完毕时抛出
         """
@@ -156,11 +158,11 @@ class LocalService(Service):
             timeout -= 1
 
         # timeout
-        raise TimeoutError("等待关机超时，可能关机失败，或者设备关机时间太长设置的等待时间太短。")
-    
-    async def wait_boot_complete(
-        self, timeout: int = 60, wait_interval: int = 1
-    ):
+        raise TimeoutError(
+            "等待关机超时，可能关机失败，或者设备关机时间太长设置的等待时间太短。"
+        )
+
+    async def wait_boot_complete(self, timeout: int = 60, wait_interval: int = 1):
         """
         等待设备启动完毕
 
@@ -183,7 +185,9 @@ class LocalService(Service):
             timeout -= 1
 
         # timeout
-        raise TimeoutError("等待重启超时，可能重启失败，或者设备重启时间太长设置的等待时间太短。")
+        raise TimeoutError(
+            "等待重启超时，可能重启失败，或者设备重启时间太长设置的等待时间太短。"
+        )
 
     async def remount(self):
         """
@@ -326,7 +330,7 @@ class LocalService(Service):
                 continue
 
             _type, remote, local = line.split()
-            reverses.append(ReverseRule(_type, remote, local))
+            reverses.append(ReverseRule(type=_type, local=remote, remote=local))
 
         return reverses
 
@@ -359,7 +363,7 @@ class LocalService(Service):
         else:
             await self.request("reverse", "forward", f"{local};{remote}")
 
-    async def reverse_remove(self, local: Union[str,ReverseRule]):
+    async def reverse_remove(self, local: Union[str, ReverseRule]):
         """移除反向代理
 
         等同于：adb reverse --remove
