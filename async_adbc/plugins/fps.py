@@ -11,7 +11,7 @@ class FpsStat(BaseModel):
     fps: float = 0
     jank: float = 0
     big_jank: float = 0
-    frametimes: List[int] = Field(default=list)  # type: ignore
+    frametimes: List[float] = Field(default=list)  # type: ignore
 
 
 class FpsPlugin(Plugin):
