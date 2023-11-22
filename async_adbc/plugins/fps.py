@@ -87,11 +87,11 @@ class FpsPlugin(Plugin):
         return refresh_period, data
 
     def _calc_jank(self, data_table, refresh_period):
-        jank_count = 0
-        big_jank_count = 0
+        jank_count = 0.0
+        big_jank_count = 0.0
 
         # 计算帧间隔，转为ms
-        frametimes: list[int] = [
+        frametimes: list[float] = [
             round((data_table[i + 1][0] - data_table[i][0]) / pow(10, 6), 2)
             for i in range(len(data_table) - 1)
         ]
