@@ -73,7 +73,6 @@ class TempPlugin(Plugin):
         ]
         return file_type_map
 
-    @alru_cache
     async def _get_temp_file(self, marks: List[str]):
         _thermal_map = await self._get_thermal_map()
 
@@ -108,7 +107,6 @@ class TempPlugin(Plugin):
     def _is_temp_valid(self, value):
         return -30 <= value <= 250
 
-    @property
     async def stat(self):
         cpu_temp = self._get_temp(self.CPU_MARKS)
         gpu_temp = self._get_temp(self.GPU_MARKS)

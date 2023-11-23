@@ -1,7 +1,6 @@
 import asyncio
 import struct
 
-from functools import wraps
 from asyncio import StreamReader, StreamWriter
 from typing import Any, AsyncGenerator, Optional, Type
 
