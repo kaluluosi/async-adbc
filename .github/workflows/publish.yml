@@ -53,5 +53,7 @@ jobs:
     docs:
         needs: [deploy]
         uses: ./.github/workflows/docs.yml
+        permissions:
+          contents: write
         with:
           deploy: true
