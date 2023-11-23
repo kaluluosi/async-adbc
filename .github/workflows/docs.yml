@@ -2,6 +2,9 @@ name: Docs-Prebuild
 
 run-name: ${{github.actor}} Docs Prebuild - ${{github.ref_name}}
 
+permissions:
+    contents: write
+
 on:
     push:
         paths:
