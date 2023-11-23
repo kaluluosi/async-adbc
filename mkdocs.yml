@@ -8,10 +8,8 @@ repo_url: https://github.com/kaluluosi/async-adbc
 
 nav:
   - 首页: index.md
-  - 快速开始: quickstart.md
-  - 插件:
-      - 目录: plugins/index.md
-      - 插件列表: plugins/plugins.md
+  - 插件: 
+    - plugins/index.md
 theme: 
     name: material
     features:

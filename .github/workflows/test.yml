@@ -74,3 +74,4 @@ jobs:
         run: |
           poetry run python -W ignore -m coverage run -m unittest -v
           poetry run coverage report
+          poetry run coverage html
