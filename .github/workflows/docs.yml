@@ -1,0 +1,61 @@
+name: Docs-Prebuild
+
+run-name: ${{github.actor}} Docs Prebuild - ${{github.ref_name}}
+
+on:
+    push:
+        paths:
+            - "docs/**"
+    pull_request:
+        paths:
+            - "docs/**"
+
+    workflow_call:
+      inputs:
+        deploy:
+          required: false
+          type: boolean
+          default: false
+
+    workflow_dispatch:
+      inputs:
+        deploy:
+          required: false
+          type: boolean
+          default: false
+
+jobs:
+    docs-prebuild:
+        runs-on: ubuntu-latest
+        
+        steps:
+          - name: Checkout-检出项目
+            uses: actions/checkout@v4
+    
+          - name: Install Poetry-安装poetry
+            run: pipx install poetry
+    
+          - name: Setup Python-安装python环境
+            uses: actions/setup-python@v4
+            with:
+              python-version: "3.9"
+              cache: 'poetry' # 缓存poetry
+          
+          - name: Update pip
+            run: pip install --upgrade pip
+    
+          - name: Install 
+            run: |
+                poetry install
+                poetry show
+
+          - name: Build Docs
+            run: |
+                poetry run mkdocs build
+
+          - name: Deploy Docs
+            if: ${{github.event.inputs.deploy == 'true'}}
+            run: |
+              poetry run mkdocs gh-deploy
+          
+          

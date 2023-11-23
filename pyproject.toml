@@ -27,6 +27,10 @@ ruff = "^0.1.5"
 coverage = "^7.3.2"
 
 
+[tool.poetry.group.docs.dependencies]
+mkdocs = "^1.5.3"
+mkdocs-material = "^9.4.10"
+
 [[tool.poetry.source]]
 name = "tsinghua"
 url = "https://pypi.tuna.tsinghua.edu.cn/simple/"

@@ -1,0 +1,52 @@
+site_name: async-adbc
+
+site_description: Async ADBC - Async ADB Client
+
+repo_name: async-adbc
+repo_url: https://github.com/kaluluosi/async-adbc
+
+
+nav:
+  - 首页: index.md
+  - 插件: 
+    - plugins/index.md
+theme: 
+    name: material
+    features:
+      - navigation.instant
+      - navigation.instant.prefetch
+      - navigation.instant.progress
+      - navigation.tracking
+      - navigation.tabs
+      - navigation.tabs.sticky
+      - navigation.sections
+      - navigation.expand
+      - navigation.path
+      - navigation.indexes
+      - toc.follow
+      - toc.integrate
+      - navigation.top
+      - search.suggest
+      - search.highlight
+      - search.share
+      - content.code.copy
+      - content.code.select
+      - content.code.annotate
+
+
+plugins:
+  - search
+
+
+markdown_extensions:
+  - pymdownx.highlight:
+      anchor_linenums: true
+      line_spans: __span
+      pygments_lang_class: true
+  - pymdownx.inlinehilite
+  - pymdownx.snippets
+  - pymdownx.superfences
+  - admonition
+  - pymdownx.details
+  - tables
+  - codehilite
