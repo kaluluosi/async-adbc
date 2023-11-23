@@ -6,6 +6,8 @@ on:
   push:
     paths-ignore:
       - ".github/**"
+    branches-ignore:
+      - gh-pages
   pull_request:
     paths-ignore:
       - ".github/**"
