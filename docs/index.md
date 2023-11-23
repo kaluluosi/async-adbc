@@ -1,9 +1,9 @@
-# ADBC
+# async-adbc
 
 [![Test-测试](https://github.com/kaluluosi/async-adbc/actions/workflows/test.yml/badge.svg)](https://github.com/kaluluosi/async-adbc/actions/workflows/test.yml)
 
 
-ADBC是ADB Client的纯python异步实现，ADBC直接跟ADB Server通信不需要靠进程调用命令行来执行ADB命令。
+`async-adbc`是ADB Client的纯python异步实现，`async-adbc`直接跟ADB Server通信不需要靠进程调用命令行来执行ADB命令。
 
 ## 特性
 1. 支持async/await
@@ -11,7 +11,7 @@ ADBC是ADB Client的纯python异步实现，ADBC直接跟ADB Server通信不需�
 3. 以`service（服务）`为单位封装命令方法，能够跟 `adb`和`android shell`命令更加一致。
 
 !!! WARNING
-    async-adbc只支持 `python 3.8` 及以上版本
+    `async-adbc`只支持 `python 3.8` 及以上版本
 
 ## 安装
 
