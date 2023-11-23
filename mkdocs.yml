@@ -11,6 +11,7 @@ nav:
   - 快速开始: quickstart.md
   - 插件:
       - 目录: plugins/index.md
+      - 插件列表: plugins/plugins.md
 theme: 
     name: material
     features:

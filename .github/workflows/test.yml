@@ -7,6 +7,8 @@ on:
     paths-ignore:
       - ".github/**"
   pull_request:
+    paths-ignore:
+      - ".github/**"
   workflow_dispatch: # 手动执行测试
   workflow_call:
 
