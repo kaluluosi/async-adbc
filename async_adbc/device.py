@@ -22,6 +22,7 @@ from async_adbc.plugins import (
     LogcatPlugin,
     MinicapPlugin,
     WMPlugin,
+    InputPlugin,
 )
 
 
@@ -55,6 +56,7 @@ class Device(LocalService):
         self.logcat = LogcatPlugin(self)
         self.minicap = MinicapPlugin(self)
         self.wm = WMPlugin(self)
+        self.input = InputPlugin(self)
 
     async def create_connection(self) -> Connection:
         conn = await self.adbc.create_connection()
