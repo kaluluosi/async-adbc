@@ -44,11 +44,11 @@ jobs:
 
           - name: Build Docs
             run: |
-                mkdocs build
+                poetry run mkdocs build
 
           - name: Deploy Docs
             if: ${{github.event.inputs.deploy == 'true'}}
             run: |
-              mkdocs gh-deploy
+              poetry run mkdocs gh-deploy
           
           
