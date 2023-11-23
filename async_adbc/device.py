@@ -1,6 +1,8 @@
 import enum
 import re
 import typing
+
+from async_lru import alru_cache
 from async_adbc.protocol import Connection
 from async_adbc.service.local import LocalService
 
@@ -59,8 +61,8 @@ class Device(LocalService):
         await conn.transport_mode(self.serialno)
         return conn
 
-
     @property
+    @alru_cache
     async def properties(self) -> typing.Dict[str, str]:
         """获取设备props
 

@@ -1,14 +1,12 @@
 import asyncio
 import re
-import typing
 
-from typing import Dict, List, Tuple, overload
+from typing import Dict, Tuple, overload
 from pydantic import BaseModel, Field
+from async_lru import alru_cache
 
 from async_adbc.plugin import Plugin
 
-if typing.TYPE_CHECKING:
-    from async_adbc.device import Device
 
 CPUStatMap = Dict[int, "CPUStat"]
 CPUUsageMap = Dict[int, "CPUUsage"]
@@ -140,13 +138,9 @@ class ProcessCPUStat(BaseModel):
 
 
 class CPUPlugin(Plugin):
-    def __init__(self, device: "Device") -> None:
-        super().__init__(device)
-        self._freqs = None
-        self._normalize_factor = None
-
     @property
-    async def count(self) -> int:
+    @alru_cache
+    async def count(self):
         """
         获取cpu核心数
 
@@ -161,7 +155,8 @@ class CPUPlugin(Plugin):
         return _cpu_count
 
     @property
-    async def freqs(self) -> List[CPUFreq]:
+    @alru_cache
+    async def freqs(self):
         """
         获取所有cpu的 最小最大和当前频率
 
@@ -170,8 +165,6 @@ class CPUPlugin(Plugin):
         Returns:
             dict[int,CPUFreq]: key是CPU编号，value是CPUFreq
         """
-        if self._freqs:
-            return self._freqs
 
         count = await self.count
         coroutines = []
@@ -185,14 +178,15 @@ class CPUPlugin(Plugin):
             coroutines.append(coroutine)
 
         freq_list = await asyncio.gather(*coroutines)
-        self._freqs = [
+        _freqs = [
             CPUFreq(min=int(min), cur=int(cur), max=int(max))
             for (min, cur, max) in freq_list
         ]
 
-        return self._freqs
+        return _freqs
 
     @property
+    @alru_cache
     async def normalize_factor(self) -> float:
         """
         cpu占用标准化因子，用这个因子去乘以cpu占用率就可以得到设备无关的标准化占用率
@@ -203,9 +197,6 @@ class CPUPlugin(Plugin):
         Returns:
             float: 因子
         """
-        if self._normalize_factor:
-            return self._normalize_factor
-
         cpu_freqs = await self.freqs
 
         # 合计所有CPU最大频率
@@ -225,8 +216,8 @@ class CPUPlugin(Plugin):
             for i in range(p[0], p[1] + 1):
                 cur_freq_sum += cpu_freqs[i].cur
 
-        self._normalize_factor = cur_freq_sum / total_max_freq
-        return self._normalize_factor
+        _normalize_factor = cur_freq_sum / total_max_freq
+        return _normalize_factor
 
     @property
     async def cpu_stats(self) -> CPUStatMap:
@@ -444,6 +435,7 @@ class CPUPlugin(Plugin):
         return CPUUsage(usage=app_cpu_usage, normalized=normalized)
 
     @property
+    @alru_cache
     async def cpu_name(self) -> str:
         """
         获取CPU名
@@ -459,6 +451,7 @@ class CPUPlugin(Plugin):
         return name
 
     @property
+    @alru_cache
     async def info(self) -> CPUInfo:
         props = await self._device.properties
 

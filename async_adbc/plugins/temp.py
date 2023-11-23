@@ -2,6 +2,7 @@ import asyncio
 from typing import List
 from async_adbc.plugin import Plugin
 from pydantic import BaseModel
+from async_lru import alru_cache
 
 
 # XXX: 如果兼容性实在不行考虑去借鉴solopi
@@ -58,6 +59,7 @@ class TempPlugin(Plugin):
         self._thermal_map = None
         self._playback_cpu_temp_file = None
 
+    @alru_cache
     async def _get_thermal_map(self):
         sensor_list = await self._device.shell(self.SENSOR_LIST_CMD)
         sensor_list = sensor_list.splitlines()
@@ -71,30 +73,28 @@ class TempPlugin(Plugin):
         ]
         return file_type_map
 
+    @alru_cache
     async def _get_temp_file(self, marks: List[str]):
-        if not self._thermal_map:
-            self._thermal_map = await self._get_thermal_map()
+        _thermal_map = await self._get_thermal_map()
 
         for mark in marks:
-            for thermal in self._thermal_map:
+            for thermal in _thermal_map:
                 if mark in thermal[1]:
                     return thermal[0]
 
         return await self._get_playback_cpu_temp_file()
 
+    @alru_cache
     async def _get_playback_cpu_temp_file(self):
         """保底的CPU温度方案，当传感器都读不到温度的时候默认用Solopi同款 CPU温度"""
-
-        if self._playback_cpu_temp_file:
-            return self._playback_cpu_temp_file
 
         for temp_file in self.PLAY_BACK_TEMP_FILE_LIST:
             res = await self._device.shell("cat", temp_file)
             res = res.strip()
             if res.isdigit():
                 int(res)
-                self._playback_cpu_temp_file = temp_file
-                return self._playback_cpu_temp_file
+                _playback_cpu_temp_file = temp_file
+                return _playback_cpu_temp_file
         raise FileNotFoundError("没有合适的温度文件读取")
 
     async def _get_temp(self, marks: List[str]):
@@ -105,9 +105,10 @@ class TempPlugin(Plugin):
         except FileNotFoundError:
             return 0
 
-    def is_temp_valid(self, value):
+    def _is_temp_valid(self, value):
         return -30 <= value <= 250
 
+    @property
     async def stat(self):
         cpu_temp = self._get_temp(self.CPU_MARKS)
         gpu_temp = self._get_temp(self.GPU_MARKS)
@@ -136,11 +137,11 @@ class TempPlugin(Plugin):
         """
         try:
             temp = float(txt)
-            if self.is_temp_valid(temp):
+            if self._is_temp_valid(temp):
                 return temp
-            elif self.is_temp_valid(temp / 10):
+            elif self._is_temp_valid(temp / 10):
                 return temp / 10
-            elif self.is_temp_valid(temp / 1000):
+            elif self._is_temp_valid(temp / 1000):
                 return temp / 1000
             return 0
         except Exception:

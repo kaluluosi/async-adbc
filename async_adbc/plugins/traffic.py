@@ -34,7 +34,6 @@ class TrafficPlugin(Plugin):
     def __init__(self, device: "Device") -> None:
         super().__init__(device)
         self._last_stat: Optional[TrafficStat] = None
-        self._last_pkg_stat: Optional[TrafficStat] = None
 
     @overload
     async def stat(self) -> TrafficStat:

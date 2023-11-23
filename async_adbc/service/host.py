@@ -82,10 +82,13 @@ class HostService(Service):
         and a string that will be dumped as-is by the client, then
         the connection is closed
         """
-        devices: List[Device] = []
         res = await self.request(self.HOST, "devices-l")
-        res = await res.text()
-        lines = res.split("\n")
+        with res:
+            ret = await res.text()
+
+        lines = ret.split("\n")
+
+        devices: List[Device] = []
         devices_infos = [line.split() for line in lines if line]
         for device_info in devices_infos:
             if device_info[1] == status.value:
@@ -137,13 +140,15 @@ class HostService(Service):
             Iterator[AsyncGenerator[DeviceChangedNotification, Any]]: 状态消息
         """
         res = await self.request(self.HOST, "track-devices")
-        async for notify in res.trace_text():
-            if notify:
-                notify = notify.strip()
-                notify = notify.split()
-                yield DeviceStatusNotification(
-                    serialno=notify[0], status=Status(notify[1])
-                )
+
+        with res:
+            async for notify in res.trace_text():
+                if notify:
+                    notify = notify.strip()
+                    notify = notify.split()
+                    yield DeviceStatusNotification(
+                        serialno=notify[0], status=Status(notify[1])
+                    )
 
     async def transport(self, serialno: str) -> Connection:
         """
@@ -172,8 +177,9 @@ class HostService(Service):
             bool: true成功，false失败
         """
         res = await self.request(self.HOST, "connect", host, str(port))
-        result = await res.text()
-        return "connected" in result
+        with res:
+            result = await res.text()
+            return "connected" in result
 
     async def remote_disconnect(self, host: str, port: int):
         """断开远程设备
@@ -186,12 +192,13 @@ class HostService(Service):
             bool: 返回信息
         """
         res = await self.request(self.HOST, "disconnect", host, str(port))
-        return await res.text()
+        with res:
+            return await res.text()
 
     async def forward_list(self) -> List[ForwardRule]:
         """
         列出当前主机所有的转发规则列表
-        adb forward 添加转发的接口在Device对象里，ADBClient只有查看所有转发列表的功能
+        adb forward 添加转发的方法在Device对象里，ADBClient只有查看所有转发列表的功能
         等同 adb forward --list
         """
         res = await self.request(self.HOST, "list-forward")
@@ -235,13 +242,15 @@ class HostService(Service):
             norebind (bool, optional): 不重复绑定，如果发现端口已映射会抛出错误. Defaults to False.
         """
         if norebind:
-            await self.request(
+            res = await self.request(
                 self.HOST_SERIAL, serialno, "forward", "norebind", f"{local};{remote}"
             )
         else:
-            await self.request(
+            res = await self.request(
                 self.HOST_SERIAL, serialno, "forward", f"{local};{remote}"
             )
+
+        res.close()
 
     async def forward_remove(self, serialno: str, local: Union[str, ForwardRule]):
         """移除端口映射
@@ -254,7 +263,8 @@ class HostService(Service):
         if isinstance(local, ForwardRule):
             local = local.local
 
-        await self.request(self.HOST_SERIAL, serialno, "killforward", local)
+        res = await self.request(self.HOST_SERIAL, serialno, "killforward", local)
+        res.close()
 
     async def forward_remove_all(self):
         """移除所有设备所有端口映射
@@ -264,4 +274,5 @@ class HostService(Service):
         Args:
             serialno (str): 设备序号
         """
-        await self.request(self.HOST, "killforward-all")
+        res = await self.request(self.HOST, "killforward-all")
+        res.close()

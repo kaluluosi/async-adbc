@@ -1,7 +1,9 @@
 import asyncio
-from asyncio import StreamReader, StreamWriter
 import struct
-from typing import Any, AsyncGenerator, Optional
+
+from functools import wraps
+from asyncio import StreamReader, StreamWriter
+from typing import Any, AsyncGenerator, Optional, Type
 
 # adb协议相关参考
 # ref https://github.com/kaluluosi/adbDocumentation/blob/master/README.zh-cn.md
@@ -46,7 +48,7 @@ async def create_connection(host: str = "127.0.0.1", port: int = 5037):
 
 
 class Response:
-    def __init__(self, reader: StreamReader, _writer:StreamWriter) -> None:
+    def __init__(self, reader: StreamReader, _writer: StreamWriter) -> None:
         self._reader = reader
         self._writer = _writer
 
@@ -59,13 +61,20 @@ class Response:
             _type_: _description_
         """
         return self._reader
-    
+
     def __enter__(self):
         pass
-    
-    def __exit__(self, exc_type, exc_val, exc_tb):
+
+    def __exit__(self, exc_type: Type[Exception], exc_val: Exception, exc_tb):
         self._writer.close()
-    
+
+    async def __aenter__(self):
+        pass
+
+    async def __aexit__(self, exc_type: Type[Exception], exc_val: Exception, exc_tb):
+        self._writer.close()
+        await self._writer.wait_closed()
+
     def close(self):
         self._writer.close()
 
@@ -109,7 +118,7 @@ class Connection:
         self.reader = reader
         self.writer = writer
 
-    async def request(self, *args: str) ->Response:
+    async def request(self, *args: str) -> Response:
         """
         发送请求，并检查返回状态，如果返回的是OKAY，那么返回响应。
 
@@ -122,11 +131,11 @@ class Connection:
         self.writer.write(data)
         await self.writer.drain()
         await self._check_status()
-        return Response(self.reader,self.writer)
+        return Response(self.reader, self.writer)
 
-    async def request_without_check(self, *args: str)->Response:
+    async def request_without_check(self, *args: str) -> Response:
         """
-        跟request接口一样，只是不会检查返回状态。
+        跟request方法一样，只是不会检查返回状态。
 
         Returns:
             Response: 响应
@@ -138,7 +147,7 @@ class Connection:
         return Response(self.reader, self.writer)
 
     async def message(self, MSG: str, length: Optional[int] = None, data: bytes = b""):
-        """底层message协议请求接口，用于发送OKAY、SEND等文件传输协议
+        """底层message协议请求方法，用于发送OKAY、SEND等文件传输协议
 
         Args:
             MSG (str): OKAY、SEND等
@@ -168,3 +177,18 @@ class Connection:
         await self.request(cmd)
         return self
 
+    def close(self):
+        self.writer.close()
+
+    def __enter__(self):
+        pass
+
+    def __exit__(self, *args, **kwargs):
+        self.writer.close()
+
+    async def __aenter__(self):
+        pass
+
+    async def __aexit__(self, *args, **kwargs):
+        self.writer.close()
+        await self.writer.wait_closed()

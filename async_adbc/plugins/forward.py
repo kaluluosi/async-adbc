@@ -8,7 +8,7 @@ if TYPE_CHECKING:
 class ForwardPlugin(Plugin):
     """Device的forward端口映射封装
 
-    与ADBClient的forward接口区别在于Device的forward接口都是作用在当前设备。
+    与ADBClient的forward方法区别在于Device的forward方法都是作用在当前设备。
     可以理解为方法参数中serialno已经默认传入了Device的serialno。
 
     Args:

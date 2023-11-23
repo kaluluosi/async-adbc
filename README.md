@@ -6,8 +6,8 @@
 ADBC是ADB Client的纯python异步实现，ADBC直接跟ADB Server通信不需要靠进程调用命令行来执行ADB命令。
 有以下特性：
 1. 支持async/await和同步调用
-2. 封装了一些性能测试相关的接口，供性能采集工具使用
-3. 以`service（服务）`为单位封装命令接口，能够跟 `adb`和`android shell`命令更加一致。
+2. 封装了一些性能测试相关的方法，供性能采集工具使用
+3. 以`service（服务）`为单位封装命令方法，能够跟 `adb`和`android shell`命令更加一致。
 
 
 ## 安装
@@ -21,7 +21,7 @@ pip install async-adbc
 `ADBClient`对应的是`adb`命令
 
 >**note**
->当连接设备只有一个的时候，`adb`命令可以省略`-s <serialno>`，但是`ADBClient`不会包含这种默认设备的命令接口。因为`async-adbc`认为`adb`和`device`应该职责分明不应有太多的潜规则。因此用户想要操作某个设备一定要使用`Device`对象下的接口，`Device`下的接口相当于是帮我们默认传递了`-s <serialno>`。
+>当连接设备只有一个的时候，`adb`命令可以省略`-s <serialno>`，但是`ADBClient`不会包含这种默认设备的命令方法。因为`async-adbc`认为`adb`和`device`应该职责分明不应有太多的潜规则。因此用户想要操作某个设备一定要使用`Device`对象下的方法，`Device`下的方法相当于是帮我们默认传递了`-s <serialno>`。
 
 ```python
 from async_adbc import ADBClient

@@ -9,6 +9,7 @@ readme = "README.md"
 [tool.poetry.dependencies]
 python = "^3.8"
 pydantic = "^2.5.1"
+async-lru = "^2.0.4"
 
 
 [tool.ruff.lint]

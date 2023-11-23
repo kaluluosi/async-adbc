@@ -27,12 +27,16 @@ class LocalService(Service):
         args = map(str, args)
         cmd = " ".join([cmd, *args])
         res = await self.request("shell", cmd)
-        res = await res.reader.read()
-        return res
+        with res:
+            ret = await res.reader.read()
+        return ret
 
     async def shell(self, cmd: str, *args: str) -> str:
         """
         调用安卓设备的shell命令
+
+        NOTE: 如果命令是持续打印不会退出，比如logcat，那么会导致这个方法无法退出。
+        如果需要持续读取打印，应该用 `shell_reader`。
 
         等同于：adb shell
 
@@ -44,38 +48,58 @@ class LocalService(Service):
         Note that this is the non-interactive version of "adb shell"
 
         Args:
-            cmd (str): _description_
+            cmd (str): 命令
 
         Returns:
-            str: _description_
+            str: 返回打印
         """
         str_args = map(str, args)
         cmd = " ".join([cmd, *str_args])
         res = await self.request("shell", cmd)
-        res = await res.reader.read()
-        return res.decode().strip()
+        with res:
+            res = await res.reader.read()
+            return res.decode().strip()
 
     async def shell_reader(self, cmd: str, *args) -> StreamReader:
+        """
+        返回shell的读取器，用来持续读取打印。
+
+        NOTE: 属于底层方法，你可以用 `shell_raw` 返回的 `Response`获得 `Reader`，效果是一样的。
+
+        WARNING: `reader` 需要手动关闭。
+
+        Args:
+            cmd (str): 命令
+
+        Returns:
+            StreamReader: 读取器
+        """
+
         args = map(str, args)
         cmd = " ".join([cmd, *args])
         res = await self.request("shell", cmd)
         return res.reader
 
     async def adbd_tcpip(self, port: int) -> str:
-        """开启adbd远程调试端口
+        """
+        开启adbd远程调试端口
 
         等同于： adb tcpip <port>
 
         Args:
-            port (int): _description_
+            port (int): 端口
+
+        Raises:
+            RuntimeError: _description_
 
         Returns:
-            str: _description_
+            str: 返回打印
         """
 
         res = await self.request("tcpip", str(port))
-        ret = await res.reader.read()
-        ret = ret.decode().strip()
+        with res:
+            ret = await res.reader.read()
+            ret = ret.decode().strip()
 
         if "restarting in TCP mode port" not in ret:
             raise RuntimeError(ret)
@@ -83,9 +107,19 @@ class LocalService(Service):
         return ret
 
     async def adbd_root(self):
+        """
+        手机端的adbd进程以root权限启动
+
+        NOTE: 这个方法调用后会导致adb短暂无法跟设备通信
+
+        Raises:
+            RuntimeError: 启动失败
+        """
+
         res = await self.request("root:")
-        ret = await res.reader.read()
-        ret = ret.decode().strip()
+        with res:
+            ret = await res.reader.read()
+            ret = ret.decode().strip()
 
         if "adbd is already running as root" == ret or "restarting adbd as root" == ret:
             return
@@ -93,9 +127,18 @@ class LocalService(Service):
             raise RuntimeError(ret)
 
     async def adbd_unroot(self):
+        """
+        手机端的adbd进程取消root权限
+
+        NOTE: 这个方法调用后会导致adb短暂无法跟设备通信
+
+        Raises:
+            RuntimeError: 启动失败
+        """
         res = await self.request("unroot:")
-        ret = await res.reader.read()
-        ret = ret.decode().strip()
+        with res:
+            ret = await res.reader.read()
+            ret = ret.decode().strip()
 
         if "restarting adbd as non root" == ret or "adbd not running as root" == ret:
             return
@@ -206,8 +249,11 @@ class LocalService(Service):
         that.
         """
         res = await self.request("remount:")
-        ret = await res.reader.read()
-        ret = ret.decode()
+
+        with res:
+            ret = await res.reader.read()
+            ret = ret.decode()
+
         if "remount succeeded" not in ret:
             raise RuntimeError(ret)
 
@@ -267,6 +313,7 @@ class LocalService(Service):
 
         await conn.message(DONE, timestamp)
         await conn._check_status()
+        conn.close()
 
     async def pull(self, src: str, dst: str):
         """从设备的src路径拉取文件保存到本地的dest路径。只支持文件，不支持拉整个目录。
@@ -304,6 +351,7 @@ class LocalService(Service):
                     stream.write(data)
                 elif flag == DONE:
                     await conn.reader.read(4)
+                    conn.close()
                     return
                 elif flag == FAIL:
                     error = await _read_data(conn)
@@ -322,8 +370,9 @@ class LocalService(Service):
         res = await self.request("reverse", "list-forward")
         reverses: list[ReverseRule] = []
 
-        res = await res.text()
-        lines = res.splitlines()
+        with res:
+            res = await res.text()
+            lines = res.splitlines()
 
         for line in lines:
             if not line:
@@ -359,9 +408,13 @@ class LocalService(Service):
         """
 
         if norebind:
-            await self.request("reverse", "forward", "norebind", f"{local};{remote}")
+            res = await self.request(
+                "reverse", "forward", "norebind", f"{local};{remote}"
+            )
         else:
-            await self.request("reverse", "forward", f"{local};{remote}")
+            res = await self.request("reverse", "forward", f"{local};{remote}")
+
+        res.close()
 
     async def reverse_remove(self, local: Union[str, ReverseRule]):
         """移除反向代理
@@ -374,11 +427,13 @@ class LocalService(Service):
         if isinstance(local, ReverseRule):
             local = local.local
 
-        await self.request("reverse", "killforward", local)
+        res = await self.request("reverse", "killforward", local)
+        res.close()
 
     async def reverse_remove_all(self):
         """移除所有反向代理规则
 
         等同于：adb reverse --remove-all
         """
-        await self.request("reverse", "killforward-all")
+        res = await self.request("reverse", "killforward-all")
+        res.close()

@@ -7,8 +7,10 @@ class LogcatPlugin(Plugin):
     async def reader(self, *args: str) -> StreamReader:
         """返回logcat的reader，自行通过readline读取下一行
 
+        WARNING: reader用完需要手动关闭
+
         Returns:
-            StreamReader: _description_
+            StreamReader: 读取器
         """
         reader = await self._device.shell_reader("logcat", *args)
         return reader
