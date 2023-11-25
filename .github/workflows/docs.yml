@@ -57,7 +57,7 @@ jobs:
                 poetry run mkdocs build
 
           - name: Deploy Docs
-            if: ${{github.event.inputs.deploy == 'true'}}
+            if: github.event.inputs.deploy == true
             run: |
               poetry run mkdocs gh-deploy
           
