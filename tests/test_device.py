@@ -71,15 +71,27 @@ class TestDevice(DeviceTestCase):
 
         self.assertFalse(rules)
 
-    async def test_get_pid_by_pkgname(self):
+    async def test_get_pid_by_package_name(self):
         await self.device.pm.install(ARM_APK)
         await asyncio.sleep(1)
         await self.device.am.start_app(PKG_NAME)
         await asyncio.sleep(1)
 
-        pid = await self.device.get_pid_by_pkgname(PKG_NAME)
+        pid = await self.device.get_pid_by_package_name(PKG_NAME)
 
         self.assertTrue(pid)
+
+        await self.device.pm.uninstall(PKG_NAME)
+
+    async def test_get_uid_by_testname(self):
+        await self.device.pm.install(ARM_APK)
+        await asyncio.sleep(1)
+        await self.device.am.start_app(PKG_NAME)
+        await asyncio.sleep(1)
+
+        uid = await self.device.get_uid_by_package_name(PKG_NAME)
+
+        self.assertTrue(uid)
 
         await self.device.pm.uninstall(PKG_NAME)
 

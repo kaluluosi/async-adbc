@@ -335,12 +335,12 @@ class CPUPlugin(Plugin):
         return CPUUsage(usage=diff.usage, normalized=normalized)
 
     @overload
-    async def get_pid_cpu_stat(self, pid_or_pkg_name: str) -> ProcessCPUStat:
+    async def get_pid_cpu_stat(self, pid_or_package_name: str) -> ProcessCPUStat:
         """
         通过pid或包名获取进程cpu状态
 
         Args:
-            pid_or_pkg_name (str): 包名
+            pid_or_package_name (str): 包名
 
         Returns:
             ProcessCPUStat: 进程cpu状态
@@ -348,24 +348,24 @@ class CPUPlugin(Plugin):
         ...
 
     @overload
-    async def get_pid_cpu_stat(self, pid_or_pkg_name: int) -> ProcessCPUStat:
+    async def get_pid_cpu_stat(self, pid_or_package_name: int) -> ProcessCPUStat:
         """
         通过pid或包名获取进程cpu状态
 
         Args:
-            pid_or_pkg_name (int): 进程pid
+            pid_or_package_name (int): 进程pid
 
         Returns:
             ProcessCPUStat: 进程cpu状态
         """
         ...
 
-    async def get_pid_cpu_stat(self, pid_or_pkg_name) -> ProcessCPUStat:
-        pid = pid_or_pkg_name
+    async def get_pid_cpu_stat(self, pid_or_package_name) -> ProcessCPUStat:
+        pid = pid_or_package_name
 
-        if isinstance(pid_or_pkg_name, str):
+        if isinstance(pid_or_package_name, str):
             try:
-                pid = await self._device.get_pid_by_pkgname(pid_or_pkg_name)
+                pid = await self._device.get_pid_by_package_name(pid_or_package_name)
             except Exception:
                 return ProcessCPUStat()
 
@@ -384,12 +384,12 @@ class CPUPlugin(Plugin):
             )
 
     @overload
-    async def get_pid_cpu_usage(self, pid_or_pkg_name: int) -> CPUUsage:
+    async def get_pid_cpu_usage(self, pid_or_package_name: int) -> CPUUsage:
         """
         通过pid或包名获取CPU使用率
 
         Args:
-            pid_or_pkg_name (int): pid
+            pid_or_package_name (int): pid
 
         Returns:
             CPUUsage: CPU使用率
@@ -397,23 +397,23 @@ class CPUPlugin(Plugin):
         ...
 
     @overload
-    async def get_pid_cpu_usage(self, pid_or_pkg_name: str) -> CPUUsage:
+    async def get_pid_cpu_usage(self, pid_or_package_name: str) -> CPUUsage:
         """
         通过pid或包名获取CPU使用率
 
         Args:
-            pid_or_pkg_name (str): 包名
+            pid_or_package_name (str): 包名
 
         Returns:
             CPUUsage: CPU使用率
         """
         ...
 
-    async def get_pid_cpu_usage(self, pid_or_pkg_name) -> CPUUsage:
-        pid = pid_or_pkg_name
+    async def get_pid_cpu_usage(self, pid_or_package_name) -> CPUUsage:
+        pid = pid_or_package_name
         if isinstance(pid, str):
             try:
-                pid = await self._device.get_pid_by_pkgname(pid_or_pkg_name)
+                pid = await self._device.get_pid_by_package_name(pid_or_package_name)
             except Exception:
                 return CPUUsage()
 

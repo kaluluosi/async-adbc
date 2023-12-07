@@ -1,5 +1,5 @@
 import asyncio
-from tests.testcase import DeviceTestCase,ARM_APK,PKG_NAME
+from tests.testcase import DeviceTestCase, ARM_APK, PKG_NAME
 
 
 class TestCpuPlugin(DeviceTestCase):
@@ -59,7 +59,7 @@ class TestCpuPlugin(DeviceTestCase):
     async def test_pid_cpu_stat(self):
         await self.device.am.start_app(PKG_NAME)
         await asyncio.sleep(1)
-        pid = await self.device.get_pid_by_pkgname(PKG_NAME)
+        pid = await self.device.get_pid_by_package_name(PKG_NAME)
         stat = await self.device.cpu.get_pid_cpu_stat(pid)
 
         self.assertGreater(stat.utime, 0)
@@ -67,7 +67,7 @@ class TestCpuPlugin(DeviceTestCase):
     async def test_pid_cpu_usage(self):
         await self.device.am.start_app(PKG_NAME)
         await asyncio.sleep(2)
-        pid = await self.device.get_pid_by_pkgname(PKG_NAME)
+        pid = await self.device.get_pid_by_package_name(PKG_NAME)
         pid_stat = await self.device.cpu.get_pid_cpu_usage(pid)
 
         self.assertGreaterEqual(pid_stat.usage, 0)

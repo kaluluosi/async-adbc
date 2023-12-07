@@ -84,7 +84,19 @@ class Device(LocalService):
 
         return properties
 
-    async def get_pid_by_pkgname(self, package_name: str) -> int:
+    async def get_pid_by_package_name(self, package_name: str) -> int:
+        """
+        通过包名获取pid
+
+        Args:
+            package_name (str): _包名
+
+        Raises:
+            RuntimeError: _APP没有运行
+
+        Returns:
+            int: PID
+        """
         result = await self.shell(f"ps -ef| grep {package_name}")
         if result:
             lines = [
@@ -94,7 +106,7 @@ class Device(LocalService):
             ]
 
             if not lines:
-                raise ValueError(f"{package_name} 应用没有运行")
+                raise RuntimeError(f"{package_name} 应用没有运行")
 
             process_list = [(seq[1], seq[7]) for seq in lines]
             process_list.sort(key=lambda v: v[1], reverse=False)
@@ -102,13 +114,37 @@ class Device(LocalService):
             return int(process_list[0][0])
 
         else:
-            raise ValueError(f"{package_name} 应用没有运行")
+            raise RuntimeError(f"{package_name} 应用没有运行")
 
-    async def file_exists(self, file_path: str) -> bool:
-        """判断设备存在这个文件路径
+    async def get_uid_by_package_name(self, package_name: str) -> int:
+        """
+        通过包名获取UID
 
         Args:
-            file_path (str): 文件路径
+            package_name (str): _包名
+
+        Raises:
+            RuntimeError: _APP没有运行
+
+        Returns:
+            int: UID
+        """
+        pid = await self.get_pid_by_package_name(package_name)
+        result = await self.shell(f"cat /proc/{pid}/status")
+        lines = result.splitlines()
+        for line in lines:
+            if line.startswith("Uid:"):
+                seq = line.split()
+                return int(seq[1])
+        else:
+            raise RuntimeError(f"{package_name} 应用没有运行")
+
+    async def file_exists(self, file_path: str) -> bool:
+        """
+        判断设备存在这个文件路径
+
+        Args:
+            file_path (str): _文件路径
 
         Returns:
             bool: true 存在， false不存在
