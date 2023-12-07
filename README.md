@@ -1,4 +1,4 @@
-# ADBC
+# async-adbc
 
 [![Test-测试](https://github.com/kaluluosi/async-adbc/actions/workflows/test.yml/badge.svg)](https://github.com/kaluluosi/async-adbc/actions/workflows/test.yml)
 
