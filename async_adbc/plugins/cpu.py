@@ -169,6 +169,7 @@ class CPUPlugin(Plugin):
         count = await self.count
         coroutines = []
         for index in range(count):
+            # TODO: 模拟器可能没有这个路径，有没有兼容性更强的方案来获取CPU频率
             cmd_root = f"cat /sys/devices/system/cpu/cpu{index}/cpufreq"
             min = self._device.shell(f"{cmd_root}/cpuinfo_min_freq")
             cur = self._device.shell(f"{cmd_root}/scaling_cur_freq")
