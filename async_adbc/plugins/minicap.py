@@ -1,8 +1,9 @@
 import os
-import pkg_resources
+# import pkg_resources
+from importlib import resources
 from async_adbc.plugin import Plugin
-
-MINICAP_LIBS = pkg_resources.resource_filename("async_adbc", "vendor/minicap")
+with resources.path('async_adbc','vendor') as path:
+    MINICAP_LIBS = os.path.join(path,"minicap")
 
 
 class MinicapPlugin(Plugin):
@@ -53,11 +54,22 @@ class MinicapPlugin(Plugin):
 
         await self._device.push(sofile_path, self.PUSH_TO + "/minicap.so", chmode=0o755)
 
-    async def get_frame(self):
+    async def get_frame(self)->bytes:
+        """
+        获取当前屏幕帧截图
+
+        Raises:
+            RuntimeError: CANNOT LINK EXECUTABLE
+            RuntimeError: naccessible or not found
+
+        Returns:
+            bytes: jpg格式字节
+        """
+        
         await self.init()
 
         resolution = await self._device.wm.size()
-        size = resolution.override_size
+        size = resolution.physical_size
         orientation = await self._device.wm.orientation()
         raw_data = await self._device.shell_raw(
             "LD_LIBRARY_PATH=/data/local/tmp /data/local/tmp/minicap",
@@ -67,10 +79,24 @@ class MinicapPlugin(Plugin):
         )
 
         if b"CANNOT LINK EXECUTABLE" in raw_data:
-            raise RuntimeError(raw_data.decode())
+            raise RuntimeError(raw_data.decode(),"CANNOT LINK EXECUTABLE")
 
         if b"inaccessible or not found" in raw_data:
-            raise RuntimeError(raw_data.decode())
+            raise RuntimeError(raw_data.decode(),"inaccessible or not found")
 
-        jpg_data = raw_data.split(b"for JPG encoder\n")[-1]
-        return jpg_data
+        return raw_data
+
+    async def screencap(self, filename="screencap.jpg"):
+        """
+        截图保存到本地
+
+        Args:
+            filename (str, optional): 保存的文件名. Defaults to "screencap.jpg".
+        """
+        frame_data = await self.get_frame()
+        
+        with open(filename, "wb") as f:
+            f.write(frame_data)
+            
+        
+    
