@@ -165,24 +165,26 @@ class CPUPlugin(Plugin):
         Returns:
             dict[int,CPUFreq]: key是CPU编号，value是CPUFreq
         """
-
         count = await self.count
-        coroutines = []
-        for index in range(count):
-            # TODO: 模拟器可能没有这个路径，有没有兼容性更强的方案来获取CPU频率
-            cmd_root = f"cat /sys/devices/system/cpu/cpu{index}/cpufreq"
-            min = self._device.shell(f"{cmd_root}/cpuinfo_min_freq")
-            cur = self._device.shell(f"{cmd_root}/scaling_cur_freq")
-            max = self._device.shell(f"{cmd_root}/cpuinfo_max_freq")
+        try:
+            coroutines = []
+            for index in range(count):
+                # TODO: 模拟器可能没有这个路径，有没有兼容性更强的方案来获取CPU频率
+                cmd_root = f"cat /sys/devices/system/cpu/cpu{index}/cpufreq"
+                min = self._device.shell(f"{cmd_root}/cpuinfo_min_freq")
+                cur = self._device.shell(f"{cmd_root}/scaling_cur_freq")
+                max = self._device.shell(f"{cmd_root}/cpuinfo_max_freq")
 
-            coroutine = asyncio.gather(min, cur, max)
-            coroutines.append(coroutine)
+                coroutine = asyncio.gather(min, cur, max)
+                coroutines.append(coroutine)
 
-        freq_list = await asyncio.gather(*coroutines)
-        _freqs = [
-            CPUFreq(min=int(min), cur=int(cur), max=int(max))
-            for (min, cur, max) in freq_list
-        ]
+            freq_list = await asyncio.gather(*coroutines)
+            _freqs = [
+                CPUFreq(min=int(min), cur=int(cur), max=int(max))
+                for (min, cur, max) in freq_list
+            ]
+        except Exception:
+            _freqs = [CPUFreq(min=1, cur=1, max=1) for _ in range(count)]   
 
         return _freqs
 
