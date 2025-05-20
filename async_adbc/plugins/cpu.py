@@ -483,9 +483,9 @@ class CPUPlugin(Plugin):
         """
         
         result = await self._device.shell("dumpsys cpuinfo|awk 'END {print $1}'|tr -d '%'")
-        if result:
+        try:
             return CPUUsage(usage=float(result))
-        else:
+        except Exception:
             return CPUUsage()
 
     async def get_package_cpu_usage_by_dumpsys(self, package: str) -> CPUUsage:
@@ -499,7 +499,7 @@ class CPUPlugin(Plugin):
             CPUUsage: CPU使用率
         """
         result = await self._device.shell(f"dumpsys cpuinfo|grep {package}|awk 'END {{print $1}}'|tr -d '%'")
-        if result:
+        try:
             return CPUUsage(usage=float(result))
-        else:
+        except Exception:
             return CPUUsage()
