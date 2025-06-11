@@ -482,32 +482,3 @@ class CPUPlugin(Plugin):
         )
         return cpu_info
 
-    async def get_total_cpu_usage_by_dumpsys(self) -> CPUUsage:
-        """
-        通过dumpsys cpuinfo命令获取CPU使用率
-
-        Returns:
-            CPUUsage: CPU使用率
-        """
-        
-        result = await self._device.shell("dumpsys cpuinfo|awk 'END {print $1}'|tr -d '%'")
-        try:
-            return CPUUsage(usage=float(result))
-        except Exception:
-            return CPUUsage()
-
-    async def get_package_cpu_usage_by_dumpsys(self, package: str) -> CPUUsage:
-        """
-        通过dumpsys cpuinfo命令获取指定进程的CPU使用率
-
-        Args:
-            package (str): 包名
-
-        Returns:
-            CPUUsage: CPU使用率
-        """
-        result = await self._device.shell(f"dumpsys cpuinfo|grep {package}|awk 'END {{print $1}}'|tr -d '%'")
-        try:
-            return CPUUsage(usage=float(result))
-        except Exception:
-            return CPUUsage()
