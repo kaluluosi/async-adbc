@@ -2,8 +2,6 @@ import os
 # import pkg_resources
 from importlib import resources
 from async_adbc.plugin import Plugin
-with resources.path('async_adbc','vendor') as path:
-    MINICAP_LIBS = os.path.join(path,"minicap")
 
 
 class MinicapPlugin(Plugin):
@@ -13,6 +11,9 @@ class MinicapPlugin(Plugin):
         """
         初始化minicap
         """
+        with resources.path('async_adbc','vendor') as path:
+            MINICAP_LIBS = os.path.join(path,"minicap")
+
 
         exists = await self._device.file_exists("/data/local/tmp/minicap")
         exists = exists and await self._device.file_exists(

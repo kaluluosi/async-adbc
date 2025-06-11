@@ -10,6 +10,7 @@ readme = "README.md"
 python = "^3.8"
 pydantic = "^2.5.1"
 async-lru = "^2.0.4"
+pure-python-adb = "^0.3.0.dev0"
 
 
 [tool.ruff.lint]

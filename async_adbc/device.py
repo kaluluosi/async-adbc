@@ -20,7 +20,7 @@ from async_adbc.plugins import (
     ForwardPlugin,
     ActivityManagerPlugin,
     LogcatPlugin,
-    MinicapPlugin,
+    # MinicapPlugin,
     WMPlugin,
     InputPlugin,
 )
@@ -54,7 +54,7 @@ class Device(LocalService):
         self.am = ActivityManagerPlugin(self)
         self.forward = ForwardPlugin(self)
         self.logcat = LogcatPlugin(self)
-        self.minicap = MinicapPlugin(self)
+        # self.minicap = MinicapPlugin(self)
         self.wm = WMPlugin(self)
         self.input = InputPlugin(self)
 

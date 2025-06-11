@@ -1,4 +1,5 @@
 import asyncio
+from collections import defaultdict
 import re
 
 from typing import Dict, Tuple, overload
@@ -54,9 +55,11 @@ class CPUStat(BaseModel):
             + self.irq
             + self.softirq
             + self.stealstolen
-            + self.guest
-            + self.guest_nice
         )
+    
+    @property
+    def total_idle(self):
+        return self.idle+self.iowait
 
     @property
     def usage(self) -> float:
@@ -66,7 +69,7 @@ class CPUStat(BaseModel):
         Returns:
             float: 占用率
         """
-        return 100 * (self.user + self.system) / self.total
+        return 100 * (self.total-self.total_idle) / self.total
 
     def __add__(self, other: "CPUStat"):
         summary = CPUStat()
@@ -134,10 +137,10 @@ class ProcessCPUStat(BaseModel):
 
     @property
     def total(self) -> float:
-        return self.utime + self.stime + self.cutime + self.stime
-
+        return self.utime + self.stime
 
 class CPUPlugin(Plugin):
+
     @property
     @alru_cache
     async def count(self):
@@ -269,8 +272,11 @@ class CPUPlugin(Plugin):
         cpu_usage = {i: CPUUsage() for i in range(cpu_count)}
 
         last_cpu_stats = await self.cpu_stats
-        await asyncio.sleep(1)
+
+        await asyncio.sleep(0.1)
+        
         cpu_stats = await self.cpu_stats
+
         for index, stat in cpu_stats.items():
             last_cpu_stat = last_cpu_stats[index]
             cpu_diff: CPUStat = stat - last_cpu_stat
@@ -327,7 +333,7 @@ class CPUPlugin(Plugin):
         last_total_cpu_stat = await self.total_cpu_stat
 
         # 用sleep来间隔采样
-        # await asyncio.sleep(1)
+        await asyncio.sleep(0.1)
 
         total_cpu_stat = await self.total_cpu_stat
         diff = total_cpu_stat - last_total_cpu_stat
@@ -425,6 +431,8 @@ class CPUPlugin(Plugin):
         last_pid_cpu_stat, last_total_cpu_stat = await asyncio.gather(
             self.get_pid_cpu_stat(pid), self.total_cpu_stat
         )
+        
+        await asyncio.sleep(0.1)
 
         pid_stat, total_cpu_stat = await asyncio.gather(
             self.get_pid_cpu_stat(pid), self.total_cpu_stat
