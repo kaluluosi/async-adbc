@@ -74,7 +74,14 @@ class FpsPlugin(Plugin):
         return FpsStat(fps=fps, jank=jank, big_jank=big_jank, frametimes=frametimes)
 
     def _parse_data(self, result: str):
-        lines = result.strip().split("\n")
+        result = result.strip()
+        
+        # XXX: android 9 以上 的 dumpsys SurfaceFlinger --latency 会多一行 now和一行时间戳，需要去掉
+        if result.startswith("now"):
+            lines = result.splitlines()[2:]
+        else:
+            lines = result.splitlines()
+        
         refresh_period = float(lines[0])
 
         data = []
