@@ -34,6 +34,8 @@ class Status(enum.Enum):
     DEVICE = "device"
     OFFLINE = "offline"
     UNKNOWN = "unknown"
+    UNAUTHORIZED = "unauthorized"
+    AUTHORIZING = "authorizing"
 
 
 class Device(LocalService):
