@@ -118,7 +118,7 @@ class HostService(Service):
         for dev in devices:
             if dev.serialno == serialno:
                 return dev
-        raise DeviceNotFoundError(serialno or "default")
+        raise DeviceNotFoundError(serialno)
 
     async def devices_track(self) -> AsyncGenerator[DeviceStatusNotification, Any]:
         """追踪设备状态，可以循环读取这个一部生成器，一旦设备状态改编就会返回一个通知消息。
