@@ -31,7 +31,7 @@ class TrafficPlugin(Plugin):
     def __init__(self, device: "Device") -> None:
         super().__init__(device)
 
-    async def gloabal_stat(self) -> TrafficStat:
+    async def global_stat(self) -> TrafficStat:
         """
         异步获取设备的网络流量统计信息。
 
