@@ -15,7 +15,7 @@ class ScrcpyPlugin(Plugin):
 
     def __init__(self, device: "Device"):
         super().__init__(device)
-        self._server_process = None
+        self._server_reader = None
         self._stream_reader = None
         self._stream_writer = None
         self._is_running = False
@@ -40,7 +40,7 @@ class ScrcpyPlugin(Plugin):
         if not os.path.exists(jarfile_path):
             raise FileNotFoundError(jarfile_path, "没有找到 scrcpy-server.jar")
 
-        await self._device.push(jarfile_path, self.PUSH_TO + "/scrcpy-server.jar", chmode=0o644)
+        await self._device.push(jarfile_path, self.PUSH_TO + "/scrcpy-server.jar", chmod=0o644)
 
     async def start(self, max_size: int = 0, bit_rate: int = 8000000, port: Optional[int] = None):
         """
@@ -56,7 +56,7 @@ class ScrcpyPlugin(Plugin):
         self._local_port = port or self.DEFAULT_PORT
 
         # 设置端口转发
-        await self._device.forward.add(f"tcp:{self._local_port}", "localabstract:scrcpy")
+        await self._device.forward.forward(f"tcp:{self._local_port}", "localabstract:scrcpy")
 
         # 启动 scrcpy 服务器
         server_cmd = [
@@ -70,7 +70,8 @@ class ScrcpyPlugin(Plugin):
         if max_size > 0:
             server_cmd.append(f"max_size={max_size}")
 
-        self._server_process = await self._device.shell_popen(" ".join(server_cmd))
+        # 使用 shell_reader 启动后台服务器
+        self._server_reader = await self._device.shell_reader(" ".join(server_cmd))
         self._is_running = True
 
         # 建立 socket 连接
@@ -91,22 +92,21 @@ class ScrcpyPlugin(Plugin):
             self._stream_writer.close()
             await self._stream_writer.wait_closed()
 
-        # 停止服务器进程
-        if self._server_process:
+        # 停止服务器进程（通过关闭 reader 来断开连接）
+        if self._server_reader:
             try:
-                self._server_process.terminate()
-                await self._server_process.wait()
+                self._server_reader.feed_eof()
             except:
                 pass
 
         # 移除端口转发
         if self._local_port:
             try:
-                await self._device.forward.remove(f"tcp:{self._local_port}")
+                await self._device.forward.forward_remove(f"tcp:{self._local_port}")
             except:
                 pass
 
-        self._server_process = None
+        self._server_reader = None
         self._stream_reader = None
         self._stream_writer = None
         self._stream_receiver = None
