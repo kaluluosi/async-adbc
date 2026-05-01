@@ -1,23 +1,10 @@
 import re
 from pydantic import BaseModel, Field
-from async_adbc.plugin import Plugin
+from async_adbc.plugin import Plugin, register_plugin
+from async_adbc.models import MemInfo, MemStat
 
 
-class MemInfo(BaseModel):
-    mem_total: int  # 内存大小
-    swap_total: int  # 交换页大小
-
-
-class MemStat(BaseModel):
-    pss: int = Field(default=0)
-    private_dirty: int = Field(default=0)
-    private_clean: int = Field(default=0)
-    swapped_dirty: int = Field(default=0)
-    heap_size: int = Field(default=0)
-    heap_alloc: int = Field(default=0)
-    heap_free: int = Field(default=0)
-
-
+@register_plugin("mem", "mem")
 class MemPlugin(Plugin):
     @property
     async def info(self) -> MemInfo:
@@ -56,13 +43,7 @@ class MemPlugin(Plugin):
             _type_: _description_
         """
         total_meminfo_re = re.compile(
-            r"\s*TOTAL\s*(?P<pss>\d+)"
-            r"\s*(?P<private_dirty>\d+)"
-            r"\s*(?P<private_clean>\d+)"
-            r"\s*(?P<swapped_dirty>\d+)"
-            r"\s*(?P<heap_size>\d+)"
-            r"\s*(?P<heap_alloc>\d+)"
-            r"\s*(?P<heap_free>\d+)"
+            r"\s*TOTAL\s+(?P<pss>\d+)\s+(?P<private_dirty>\d+)\s+(?P<private_clean>\d+)\s+(?P<swapped_dirty>\d+)\s+(?P<heap_size>\d+)\s+(?P<heap_alloc>\d+)\s+(?P<heap_free>\d+)"
         )
 
         cmd = f"dumpsys meminfo {package_name}"

@@ -1,10 +1,11 @@
 from typing import List, TYPE_CHECKING, Union
-from async_adbc.plugin import Plugin
+from async_adbc.plugin import Plugin, register_plugin
 
 if TYPE_CHECKING:
-    from async_adbc.service.host import ForwardRule
+    from async_adbc.models import ForwardRule
 
 
+@register_plugin("forward", "forward")
 class ForwardPlugin(Plugin):
     """Device的forward端口映射封装
 

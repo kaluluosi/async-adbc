@@ -1,7 +1,8 @@
 from typing import Optional
-from async_adbc.plugin import Plugin
+from async_adbc.plugin import Plugin, register_plugin
 
 
+@register_plugin("utils", "utils")
 class UtilsPlugin(Plugin):
     """
     工具函数插件，一些不好分类的工具函数都仍这里

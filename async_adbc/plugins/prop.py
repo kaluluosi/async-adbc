@@ -1,9 +1,10 @@
 import re
 from typing import Dict
 from collections import defaultdict
-from async_adbc.plugin import Plugin
+from async_adbc.plugin import Plugin, register_plugin
 
 
+@register_plugin("prop", "prop")
 class PropPlugin(Plugin):
     @property
     async def properties(self) -> Dict[str, str]:

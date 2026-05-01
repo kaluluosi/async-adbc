@@ -1,12 +1,8 @@
-from pydantic import BaseModel
-from async_adbc.plugin import Plugin
+from async_adbc.plugin import Plugin, register_plugin
+from async_adbc.models import Resolution
 
 
-class Resolution(BaseModel):
-    physical_size: str
-    override_size: str
-
-
+@register_plugin("wm", "wm")
 class WMPlugin(Plugin):
     async def size(self):
         res = await self._device.shell("wm", "size")

@@ -1,13 +1,8 @@
-from async_adbc.plugin import Plugin
-from pydantic import BaseModel
+from async_adbc.plugin import Plugin, register_plugin
+from async_adbc.models import GPUInfo
 
 
-class GPUInfo(BaseModel):
-    manufactor: str
-    name: str
-    opengl: str
-
-
+@register_plugin("gpu", "gpu")
 class GPUPlugin(Plugin):
     @property
     async def info(self) -> GPUInfo:

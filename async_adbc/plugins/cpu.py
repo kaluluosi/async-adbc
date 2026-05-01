@@ -3,142 +3,23 @@ from collections import defaultdict
 import re
 
 from typing import Dict, Tuple, overload
-from pydantic import BaseModel, Field
 from async_lru import alru_cache
 
-from async_adbc.plugin import Plugin
+from async_adbc.plugin import Plugin, register_plugin
+from async_adbc.models import (
+    CPUInfo,
+    CPUUsage,
+    CPUFreq,
+    CPUStat,
+    ProcessCPUStat,
+)
 
 
 CPUStatMap = Dict[int, "CPUStat"]
 CPUUsageMap = Dict[int, "CPUUsage"]
 
 
-class CPUInfo(BaseModel):
-    platform: str
-    name: str
-    abi: str
-    core: int
-    freq: Tuple[int, int]
-
-
-class CPUUsage(BaseModel):
-    usage: float = Field(default=0.0)
-    normalized: float = Field(default=0.0)
-
-
-class CPUFreq(BaseModel):
-    min: int
-    cur: int
-    max: int
-
-
-class CPUStat(BaseModel):
-    user: float = 0
-    nice: float = 0
-    system: float = 0
-    idle: float = 0
-    iowait: float = 0
-    irq: float = 0
-    softirq: float = 0
-    stealstolen: float = 0
-    guest: float = 0
-    guest_nice: float = 0
-
-    @property
-    def total(self):
-        return (
-            self.user
-            + self.nice
-            + self.system
-            + self.idle
-            + self.iowait
-            + self.irq
-            + self.softirq
-            + self.stealstolen
-        )
-    
-    @property
-    def total_idle(self):
-        return self.idle+self.iowait
-
-    @property
-    def usage(self) -> float:
-        """
-        获取占用率，单位%
-
-        Returns:
-            float: 占用率
-        """
-        return 100 * (self.total-self.total_idle) / self.total
-
-    def __add__(self, other: "CPUStat"):
-        summary = CPUStat()
-
-        summary.user = self.user + other.user
-        summary.nice = self.nice + other.nice
-        summary.system = self.system + other.system
-        summary.idle = self.idle + other.idle
-        summary.iowait = self.iowait + other.iowait
-        summary.irq = self.irq + other.irq
-        summary.softirq = self.softirq + other.softirq
-        summary.stealstolen = self.stealstolen + other.stealstolen
-        summary.guest = self.guest + other.guest
-        summary.guest_nice = self.guest_nice + other.guest_nice
-
-        return summary
-
-    def __sub__(self, other: "CPUStat"):
-        result = CPUStat()
-
-        result.user = self.user - other.user
-        result.nice = self.nice - other.nice
-        result.system = self.system - other.system
-        result.idle = self.idle - other.idle
-        result.iowait = self.iowait - other.iowait
-        result.irq = self.irq - other.irq
-        result.softirq = self.softirq - other.softirq
-        result.stealstolen = self.stealstolen - other.stealstolen
-        result.guest = self.guest - other.guest
-        result.guest_nice = self.guest_nice - other.guest_nice
-
-        return result
-
-    def __str__(self):
-        attrs = vars(self)
-        return ", ".join("%s: %s" % item for item in attrs.items())
-
-
-class ProcessCPUStat(BaseModel):
-    name: str = ""
-    utime: int = 0
-    stime: int = 0
-    cutime: int = 0
-    cstime: int = 0
-
-    def __add__(self, other: "ProcessCPUStat"):
-        summary = ProcessCPUStat(name=self.name)
-        summary.utime = self.utime + other.utime
-        summary.stime = self.stime + other.stime
-        summary.cutime = self.cutime + other.cutime
-        summary.cstime = self.cstime + other.cstime
-        return summary
-
-    def __sub__(self, other: "ProcessCPUStat"):
-        result = ProcessCPUStat(name=self.name)
-        result.utime = self.utime - other.utime
-        result.stime = self.stime - other.stime
-        result.cutime = self.cutime - other.cutime
-        result.cstime = self.cstime - other.cstime
-        return result
-
-    def __str__(self):
-        attrs = vars(self)
-        return ", ".join("%s: %s" % item for item in attrs.items())
-
-    @property
-    def total(self) -> float:
-        return self.utime + self.stime
-
+@register_plugin("cpu", "cpu")
 class CPUPlugin(Plugin):
 
     @property
@@ -187,7 +68,7 @@ class CPUPlugin(Plugin):
                 for (min, cur, max) in freq_list
             ]
         except Exception:
-            _freqs = [CPUFreq(min=1, cur=1, max=1) for _ in range(count)]   
+            _freqs = [CPUFreq(min=1, cur=1, max=1) for _ in range(count)]
 
         return _freqs
 
@@ -274,7 +155,7 @@ class CPUPlugin(Plugin):
         last_cpu_stats = await self.cpu_stats
 
         await asyncio.sleep(0.1)
-        
+
         cpu_stats = await self.cpu_stats
 
         for index, stat in cpu_stats.items():
@@ -324,7 +205,7 @@ class CPUPlugin(Plugin):
     async def total_cpu_usage(self) -> CPUUsage:
         """
         获取总cpu占用率
-         获取的是两次采样间隔的cpu使用率，第一获取到的永远是0，你需要再调用一次才能获取到使用率。
+            获取的是两次采样间隔的cpu使用率，第一获取到的永远是0，你需要再调用一次才能获取到使用率。
 
         Returns:
             CPUUsage: CPU使用率
@@ -431,7 +312,7 @@ class CPUPlugin(Plugin):
         last_pid_cpu_stat, last_total_cpu_stat = await asyncio.gather(
             self.get_pid_cpu_stat(pid), self.total_cpu_stat
         )
-        
+
         await asyncio.sleep(0.1)
 
         pid_stat, total_cpu_stat = await asyncio.gather(
@@ -481,4 +362,3 @@ class CPUPlugin(Plugin):
             freq=(freq.min, freq.max),
         )
         return cpu_info
-

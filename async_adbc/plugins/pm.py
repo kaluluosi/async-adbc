@@ -3,24 +3,11 @@ import re
 from typing import Any, Dict, List, Optional
 
 from async_adbc.service.local import ProgressCallback
-from async_adbc.plugin import Plugin
+from async_adbc.plugin import Plugin, register_plugin
+from async_adbc.exceptions import InstallError, UninstallError, ClearError
 
 
-class InstallError(Exception):
-    def __init__(self, src: str, msg) -> None:
-        super().__init__(f"{src} 安装失败 - [{msg}]")
-
-
-class UninstallError(Exception):
-    def __init__(self, *args: object) -> None:
-        super().__init__("卸载异常", *args)
-
-
-class ClearError(Exception):
-    def __init__(self, package_name: str, msg) -> None:
-        super().__init__(f"{package_name}无法被清除 - [{msg}]")
-
-
+@register_plugin("pm", "pm")
 class PMPlugin(Plugin):
     """
     PackageManager插件

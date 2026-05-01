@@ -1,5 +1,8 @@
 from typing import Literal, Optional, Union
-from async_adbc.plugin import Plugin
+from async_adbc.plugin import Plugin, register_plugin
+
+
+@register_plugin("input", "input")
 
 """
 Usage: input [<source>] [-d DISPLAY_ID] <command> [<arg>...]

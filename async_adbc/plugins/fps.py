@@ -1,19 +1,10 @@
-from async_adbc.plugin import Plugin
+from async_adbc.plugin import Plugin, register_plugin
 from typing import List, Optional
-from pydantic import BaseModel, Field
+from async_adbc.exceptions import SurfaceNotFoundError
+from async_adbc.models import FpsStat
 
 
-class SurfaceNotFoundError(Exception):
-    ...
-
-
-class FpsStat(BaseModel):
-    fps: float = 0
-    jank: float = 0
-    big_jank: float = 0
-    frametimes: List[float] = Field(default=list)  # type: ignore
-
-
+@register_plugin("fps", "fps")
 class FpsPlugin(Plugin):
     async def get_surface_view(self, package_name: str) -> Optional[str]:
         result: str = await self._device.shell(
@@ -75,13 +66,13 @@ class FpsPlugin(Plugin):
 
     def _parse_data(self, result: str):
         result = result.strip()
-        
+
         # XXX: android 9 以上 的 dumpsys SurfaceFlinger --latency 会多一行 now和一行时间戳，需要去掉
         if result.startswith("now"):
             lines = result.splitlines()[2:]
         else:
             lines = result.splitlines()
-        
+
         refresh_period = float(lines[0])
 
         data = []
@@ -132,7 +123,7 @@ class FpsPlugin(Plugin):
         end_time = data_table[-1][0]
 
         duration = end_time - start_time
-        # pow(10,9)是 1000000000 ，用来把纳秒转秒
+        # pow(10,9)是 1000000000，用来把纳秒转秒
         if duration <= 0:  # 可能是0
             return 1
 
