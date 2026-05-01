@@ -188,6 +188,7 @@ class TestMinicapPluginIntegration:
 
             # 等待一下让服务启动
             import asyncio
+
             await asyncio.sleep(1)
 
             # 停止
