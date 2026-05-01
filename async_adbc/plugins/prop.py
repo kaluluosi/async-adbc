@@ -1,5 +1,5 @@
 import re
-from typing import Dict, List
+from typing import Dict, List, Optional
 from collections import defaultdict
 
 from async_lru import alru_cache
@@ -9,7 +9,7 @@ from async_adbc.plugin import Plugin, register_plugin
 
 @register_plugin("prop", "prop")
 class PropPlugin(Plugin):
-    async def _try_shell_commands(self, commands: List[str]) -> str | None:
+    async def _try_shell_commands(self, commands: List[str]) -> Optional[str]:
         """尝试多个命令，返回第一个成功的结果
 
         Args:

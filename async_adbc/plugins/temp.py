@@ -1,5 +1,5 @@
 import re
-from typing import List
+from typing import List, Optional
 
 from async_adbc.plugin import Plugin, register_plugin
 from async_adbc.models import TempStat
@@ -8,7 +8,7 @@ from async_adbc.models import TempStat
 @register_plugin("temp", "temp")
 class TempPlugin(Plugin):
 
-    async def _try_shell_commands(self, commands: List[str]) -> str | None:
+    async def _try_shell_commands(self, commands: List[str]) -> Optional[str]:
         """尝试多个命令，返回第一个成功的结果
 
         Args:

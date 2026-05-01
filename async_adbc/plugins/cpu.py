@@ -1,7 +1,7 @@
 import asyncio
 from collections import defaultdict
 import re
-from typing import Dict, List, Optional, Tuple
+from typing import Dict, List, Optional, Tuple, Union
 
 from async_lru import alru_cache
 
@@ -21,7 +21,7 @@ CPUUsageMap = Dict[int, CPUUsage]
 
 @register_plugin("cpu", "cpu")
 class CPUPlugin(Plugin):
-    async def _try_shell_commands(self, commands: List[str]) -> str | None:
+    async def _try_shell_commands(self, commands: List[str]) -> Optional[str]:
         """尝试多个命令，返回第一个成功的结果
 
         Args:
@@ -266,7 +266,7 @@ class CPUPlugin(Plugin):
             return CPUUsage()
 
     async def get_pid_cpu_stat(
-        self, pid_or_pkg_name: int | str, check: bool = False
+        self, pid_or_pkg_name: Union[int, str], check: bool = False
     ) -> ProcessCPUStat:
         """通过 PID 或包名获取进程 CPU 统计数据
 
@@ -307,7 +307,7 @@ class CPUPlugin(Plugin):
         return ProcessCPUStat()
 
     async def get_pid_cpu_usage(
-        self, pid_or_pkg_name: int | str, check: bool = False
+        self, pid_or_pkg_name: Union[int, str], check: bool = False
     ) -> CPUUsage:
         """通过 PID 或包名获取进程 CPU 占用率
 
