@@ -1,6 +1,9 @@
 name: Integration Test
 run-name: ${{github.actor}} Integration Test - ${{github.ref_name}}
 
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
 on:
   workflow_dispatch:
   pull_request:

@@ -1,6 +1,9 @@
 name: CI
 run-name: ${{github.actor}} CI - ${{github.ref_name}}
 
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
 on:
   push:
     paths-ignore:

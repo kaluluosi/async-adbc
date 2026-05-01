@@ -1,6 +1,9 @@
 name: Publish PyPI
 run-name: ${{github.actor}} is publishing ${{ inputs.version || github.ref_name || github.event.release.tag_name }} to PyPI
 
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
 on:
   push:
     tags:
