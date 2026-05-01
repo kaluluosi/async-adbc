@@ -6,24 +6,7 @@ from async_lru import alru_cache
 from async_adbc.protocol import Connection
 from async_adbc.service.local import LocalService
 
-from async_adbc.plugins import (
-    PMPlugin,
-    PropPlugin,
-    CPUPlugin,
-    GPUPlugin,
-    BatteryPlugin,
-    FpsPlugin,
-    MemPlugin,
-    TempPlugin,
-    UtilsPlugin,
-    TrafficPlugin,
-    ForwardPlugin,
-    ActivityManagerPlugin,
-    LogcatPlugin,
-    # MinicapPlugin,
-    WMPlugin,
-    InputPlugin,
-)
+from async_adbc.plugins._registry import get_registry
 
 
 if typing.TYPE_CHECKING:
@@ -43,22 +26,14 @@ class Device(LocalService):
         self.adbc = adbc
         self.serialno = serialno
 
-        self.pm = PMPlugin(self)
-        self.prop = PropPlugin(self)
-        self.cpu = CPUPlugin(self)
-        self.gpu = GPUPlugin(self)
-        self.mem = MemPlugin(self)
-        self.fps = FpsPlugin(self)
-        self.battery = BatteryPlugin(self)
-        self.temp = TempPlugin(self)
-        self.utils = UtilsPlugin(self)
-        self.traffic = TrafficPlugin(self)
-        self.am = ActivityManagerPlugin(self)
-        self.forward = ForwardPlugin(self)
-        self.logcat = LogcatPlugin(self)
-        # self.minicap = MinicapPlugin(self)
-        self.wm = WMPlugin(self)
-        self.input = InputPlugin(self)
+        # 动态加载插件
+        self._load_plugins()
+
+    def _load_plugins(self):
+        registry = get_registry()
+        for metadata in registry.get_all():
+            plugin = metadata.plugin_class(self)
+            setattr(self, metadata.attr_name, plugin)
 
     async def create_connection(self) -> Connection:
         conn = await self.adbc.create_connection()
