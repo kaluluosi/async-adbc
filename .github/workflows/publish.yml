@@ -66,7 +66,7 @@ jobs:
 
   docs:
     name: Deploy Docs
-    needs: [deploy]
+    needs: [ci]
     uses: ./.github/workflows/docs.yml
     permissions:
       contents: write
