@@ -175,31 +175,23 @@ class TestTempPluginIntegration:
 class TestMinicapPluginIntegration:
     """测试 MinicapPlugin 集成"""
 
-    async def test_init_and_start_stop(self):
-        """测试初始化、启动和停止 minicap"""
+    async def test_init_and_get_frame(self):
+        """测试初始化和获取截图"""
         adbc = ADBClient()
         device = await adbc.device("emulator-5554")
         try:
             # 初始化
             await device.minicap.init()
 
-            # 启动 minicap
-            await device.minicap.start()
+            # 获取截图
+            frame = await device.minicap.get_frame()
+            assert isinstance(frame, bytes)
+            assert len(frame) > 0
 
-            # 等待一下让服务启动
-            import asyncio
-
-            await asyncio.sleep(1)
-
-            # 停止
-            await device.minicap.stop()
+            # 保存截图
+            await device.minicap.screencap("test_minicap.jpg")
 
         finally:
-            # 确保停止，防止端口占用
-            try:
-                await device.minicap.stop()
-            except:
-                pass
             device.close()
             adbc.close()
 

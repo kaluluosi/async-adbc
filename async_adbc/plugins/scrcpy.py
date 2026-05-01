@@ -32,22 +32,22 @@ class ScrcpyPlugin(Plugin):
         """
         初始化 scrcpy，推送 scrcpy-server.jar 到设备
         """
-        # 用 __file__ 定位 vendor 目录，更兼容
-        plugin_dir = os.path.dirname(os.path.abspath(__file__))
-        async_adbc_dir = os.path.dirname(plugin_dir)
-        vendor_dir = os.path.join(async_adbc_dir, "vendor")
-        SCRCPY_LIBS = os.path.join(vendor_dir, "scrcpy")
+        from importlib.resources import files, as_file
 
         exists = await self._device.file_exists("/data/local/tmp/scrcpy-server.jar")
         if exists:
             return
 
-        jarfile_path = os.path.join(SCRCPY_LIBS, "scrcpy-server.jar")
+        # 用官方最佳实践 importlib.resources 定位 vendor 目录
+        vendor_traversable = files("async_adbc") / "vendor" / "scrcpy"
+        jarfile_traversable = vendor_traversable / "scrcpy-server.jar"
 
-        if not os.path.exists(jarfile_path):
-            raise FileNotFoundError(jarfile_path, "没有找到 scrcpy-server.jar")
+        # 使用 as_file 确保在安装后也能正常访问
+        with as_file(jarfile_traversable) as jarfile_path:
+            if not os.path.exists(jarfile_path):
+                raise FileNotFoundError(jarfile_path, "没有找到 scrcpy-server.jar")
 
-        await self._device.push(jarfile_path, self.PUSH_TO + "/scrcpy-server.jar", chmod=0o644)
+            await self._device.push(jarfile_path, self.PUSH_TO + "/scrcpy-server.jar", chmod=0o644)
 
     async def start(self, max_size: int = 0, bit_rate: int = 8000000, port: Optional[int] = None):
         """

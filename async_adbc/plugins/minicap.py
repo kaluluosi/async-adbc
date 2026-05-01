@@ -10,24 +10,19 @@ class MinicapPlugin(Plugin):
         """
         初始化minicap
         """
-        # 用 __file__ 定位 vendor 目录，更兼容
-        plugin_dir = os.path.dirname(os.path.abspath(__file__))
-        async_adbc_dir = os.path.dirname(plugin_dir)
-        vendor_dir = os.path.join(async_adbc_dir, "vendor")
-        MINICAP_LIBS = os.path.join(vendor_dir, "minicap")
-
+        from importlib.resources import files, as_file
 
         exists = await self._device.file_exists("/data/local/tmp/minicap")
         exists = exists and await self._device.file_exists(
-            "/data/local/temp/minicap.so"
+            "/data/local/tmp/minicap.so"
         )
         if exists:
             return
 
         props = await self._device.get_properties()
-        abi = props.get("ro.product.cpu.abi", "unknow")
-        pre_sdk = props.get("ro.build.version.preview_sdk", "unknow")
-        rel_sdk = props.get("ro.build.version.release", "unknow")
+        abi = props.get("ro.product.cpu.abi", "unknown")
+        pre_sdk = props.get("ro.build.version.preview_sdk", "unknown")
+        rel_sdk = props.get("ro.build.version.release", "unknown")
         sdk = props.get("ro.build.version.sdk")
         sdk = int(sdk or 0)
 
@@ -38,24 +33,32 @@ class MinicapPlugin(Plugin):
             binfile = "minicap"
         else:
             binfile = "minicap-nopie"
-        binfile_path = os.path.join(MINICAP_LIBS, abi, binfile)
 
-        if not os.path.exists(binfile_path):
-            raise FileNotFoundError(binfile_path, "没有与该设备匹配的minicap")
+        # 用官方最佳实践 importlib.resources 定位 vendor 目录
+        minicap_traversable = files("async_adbc") / "vendor" / "minicap"
+        binfile_traversable = minicap_traversable / abi / binfile
 
-        await self._device.push(binfile_path, self.PUSH_TO + "/minicap", chmode=0o755)
+        # 推送 minicap 二进制文件
+        with as_file(binfile_traversable) as binfile_path:
+            if not os.path.exists(binfile_path):
+                raise FileNotFoundError(binfile_path, "没有与该设备匹配的minicap")
 
-        sofile_path = os.path.join(
-            MINICAP_LIBS, f"minicap-shared/aosp/libs/android-{sdk}/{abi}/minicap.so"
-        )
+            await self._device.push(binfile_path, self.PUSH_TO + "/minicap", chmod=0o755)
 
-        if not os.path.isfile(sofile_path):
-            sofile_path = os.path.join(
-                MINICAP_LIBS,
-                f"minicap-shared/aosp/libs/android-{rel_sdk}/{abi}/minicap.so",
-            )
+        # 查找 minicap.so
+        sofile_traversable = minicap_traversable / "minicap-shared" / "aosp" / "libs" / f"android-{sdk}" / abi / "minicap.so"
+        
+        # 检查是否存在，不存在则尝试用 rel_sdk
+        try:
+            # 尝试检查文件是否存在（Traversable 的 is_file() 方法）
+            if not sofile_traversable.is_file():
+                sofile_traversable = minicap_traversable / "minicap-shared" / "aosp" / "libs" / f"android-{rel_sdk}" / abi / "minicap.so"
+        except Exception:
+            sofile_traversable = minicap_traversable / "minicap-shared" / "aosp" / "libs" / f"android-{rel_sdk}" / abi / "minicap.so"
 
-        await self._device.push(sofile_path, self.PUSH_TO + "/minicap.so", chmode=0o755)
+        # 推送 minicap.so
+        with as_file(sofile_traversable) as sofile_path:
+            await self._device.push(sofile_path, self.PUSH_TO + "/minicap.so", chmod=0o755)
 
     async def get_frame(self)->bytes:
         """

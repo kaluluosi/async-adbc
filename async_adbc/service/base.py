@@ -21,42 +21,29 @@ from async_adbc.protocol.connection import Connection, Response
 
 class Service(abc.ABC):
     def __init__(self):
-        self._conn: Optional[Connection] = None
-        self._lock = asyncio.Lock()
+        # 不再共享连接，每次请求创建新连接，避免 ConnectionResetError
+        pass
 
     @abc.abstractmethod
     async def create_connection(self) -> Connection:
         ...
 
-    async def _get_connection(self) -> Connection:
-        async with self._lock:
-            if self._conn is None:
-                self._conn = await self.create_connection()
-            return self._conn
-
-    def _close_connection(self):
-        if self._conn is not None:
-            try:
-                self._conn.close()
-            except Exception:
-                pass
-            self._conn = None
-
     def close(self):
-        self._close_connection()
+        # 不再有共享连接需要关闭
+        pass
 
     async def request(self, *args: str) -> Response:
-        conn = await self._get_connection()
+        conn = await self.create_connection()
         try:
             return await conn.request(*args)
         except Exception:
-            self._close_connection()
+            conn.close()
             raise
 
     async def request_without_check(self, *args: str) -> Response:
-        conn = await self._get_connection()
+        conn = await self.create_connection()
         try:
             return await conn.request_without_check(*args)
         except Exception:
-            self._close_connection()
+            conn.close()
             raise
