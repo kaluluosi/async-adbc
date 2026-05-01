@@ -1,4 +1,5 @@
 """scrcpy 插件测试模块"""
+
 import pytest
 import asyncio
 import struct
@@ -28,20 +29,20 @@ class TestScrcpyPlugin:
         """测试 scrcpy-server.jar 不存在时的初始化"""
         mock_device.file_exists = AsyncMock(return_value=False)
         mock_device.push = AsyncMock()
-        
-        with patch('os.path.exists', return_value=True):
-            with patch('importlib.resources.path'):
+
+        with patch("os.path.exists", return_value=True):
+            with patch("importlib.resources.path"):
                 await scrcpy_plugin.init()
-        
+
         mock_device.push.assert_called_once()
 
     @pytest.mark.asyncio
     async def test_init_jar_not_found(self, scrcpy_plugin, mock_device):
         """测试找不到 scrcpy-server.jar 时的处理"""
         mock_device.file_exists = AsyncMock(return_value=False)
-        
-        with patch('os.path.exists', return_value=False):
-            with patch('importlib.resources.path'):
+
+        with patch("os.path.exists", return_value=False):
+            with patch("importlib.resources.path"):
                 with pytest.raises(FileNotFoundError):
                     await scrcpy_plugin.init()
 
@@ -65,20 +66,24 @@ class TestInputController:
 
     def test_pack_message(self, input_controller):
         """测试消息打包"""
-        msg = input_controller._pack_message(InputController.TYPE_INJECT_KEYCODE, b"\x00\x01\x02\x03")
+        msg = input_controller._pack_message(
+            InputController.TYPE_INJECT_KEYCODE, b"\x00\x01\x02\x03"
+        )
         assert msg == b"\x00\x00\x01\x02\x03"
 
     @pytest.mark.asyncio
     async def test_send_keycode_event(self, input_controller, mock_writer):
         """测试发送按键事件"""
-        await input_controller._send_keycode_event(4, InputController.AKEY_EVENT_ACTION_DOWN)
-        
+        await input_controller._send_keycode_event(
+            4, InputController.AKEY_EVENT_ACTION_DOWN
+        )
+
         mock_writer.write.assert_called_once()
         written_data = mock_writer.write.call_args[0][0]
         assert len(written_data) == 14  # 1 + 1 + 4 + 4 + 4
-        
+
         # 验证消息格式
-        unpacked = struct.unpack('!BBIii', written_data)
+        unpacked = struct.unpack("!BBIii", written_data)
         assert unpacked[0] == InputController.TYPE_INJECT_KEYCODE
         assert unpacked[1] == InputController.AKEY_EVENT_ACTION_DOWN
         assert unpacked[2] == 4  # keycode
@@ -87,7 +92,7 @@ class TestInputController:
     async def test_keycode(self, input_controller, mock_writer):
         """测试 keycode 方法（发送 DOWN 和 UP）"""
         await input_controller.keycode(4)
-        
+
         assert mock_writer.write.call_count == 2
         mock_writer.drain.assert_awaited()
 
@@ -96,28 +101,27 @@ class TestInputController:
         """测试文本输入"""
         test_text = "hello"
         await input_controller.text(test_text)
-        
+
         mock_writer.write.assert_called_once()
         written_data = mock_writer.write.call_args[0][0]
-        
+
         # 验证消息格式
         assert written_data[0] == InputController.TYPE_INJECT_TEXT
-        text_len = struct.unpack('!H', written_data[1:3])[0]
+        text_len = struct.unpack("!H", written_data[1:3])[0]
         assert text_len == len(test_text)
-        assert written_data[3:].decode('utf-8') == test_text
+        assert written_data[3:].decode("utf-8") == test_text
 
     @pytest.mark.asyncio
     async def test_send_touch_event(self, input_controller, mock_writer):
         """测试发送触摸事件"""
         await input_controller._send_touch_event(
-            InputController.AMOTION_EVENT_ACTION_DOWN,
-            540, 960, 1.0
+            InputController.AMOTION_EVENT_ACTION_DOWN, 540, 960, 1.0
         )
-        
+
         mock_writer.write.assert_called_once()
         written_data = mock_writer.write.call_args[0][0]
         assert len(written_data) == 24  # 1 + 1 + 8 + 4 + 4 + 2 + 4
-        
+
         # 验证消息格式
         # struct.unpack 不支持 8 字节的负数指针 ID，我们单独验证各部分
         assert written_data[0] == InputController.TYPE_INJECT_TOUCH_EVENT
@@ -127,15 +131,15 @@ class TestInputController:
         expected_y = int(960 * 0x10000 / 1920)
         x_bytes = written_data[10:14]
         y_bytes = written_data[14:18]
-        assert int.from_bytes(x_bytes, byteorder='big', signed=True) == expected_x
-        assert int.from_bytes(y_bytes, byteorder='big', signed=True) == expected_y
+        assert int.from_bytes(x_bytes, byteorder="big", signed=True) == expected_x
+        assert int.from_bytes(y_bytes, byteorder="big", signed=True) == expected_y
 
     @pytest.mark.asyncio
-    @patch('asyncio.sleep', new_callable=AsyncMock)
+    @patch("asyncio.sleep", new_callable=AsyncMock)
     async def test_tap(self, mock_sleep, input_controller, mock_writer):
         """测试 tap 方法"""
         await input_controller.tap(540, 960)
-        
+
         # 应该发送 DOWN 和 UP 两个事件
         assert mock_writer.write.call_count == 2
 
@@ -172,13 +176,14 @@ class TestStreamReceiver:
         """测试接收循环"""
         # 创建测试数据
         test_frame = b"test h264 frame"
-        header = struct.pack('!QI', 123456789, len(test_frame))
-        
+        header = struct.pack("!QI", 123456789, len(test_frame))
+
         # Mock reader
         mock_reader = MagicMock()
-        
+
         # 让 readexactly 先返回 header，再返回 frame，然后抛出 CancelledError
         call_count = 0
+
         async def mock_readexactly(n):
             nonlocal call_count
             call_count += 1
@@ -188,20 +193,20 @@ class TestStreamReceiver:
                 return test_frame
             else:
                 raise asyncio.CancelledError()
-        
+
         mock_reader.readexactly = mock_readexactly
-        
+
         receiver = StreamReceiver(mock_reader)
         callback = MagicMock()
         receiver.set_frame_callback(callback)
-        
+
         # 启动接收循环
         receiver._running = True
         task = asyncio.create_task(receiver._receive_loop())
-        
+
         # 让协程运行一下
         await asyncio.sleep(0.05)
-        
+
         # 停止并清理
         receiver._running = False
         task.cancel()
@@ -209,7 +214,7 @@ class TestStreamReceiver:
             await task
         except asyncio.CancelledError:
             pass
-        
+
         # 验证
         assert receiver.get_latest_frame() == test_frame
         callback.assert_called_once_with(test_frame)
