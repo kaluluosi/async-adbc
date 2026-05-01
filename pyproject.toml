@@ -63,3 +63,6 @@ markers = [
     "unit: Unit tests that don't require real device",
     "integration: Integration tests that require real device",
 ]
+filterwarnings = [
+    "ignore::async_lru.AlruCacheLoopResetWarning",
+]
