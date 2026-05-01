@@ -4,24 +4,17 @@ import struct
 
 from asyncio import StreamReader
 from stat import S_IFREG
-from typing import Callable, List, Literal, Optional, Union
-from pydantic import BaseModel
-from async_adbc.protocol import DATA, DONE, FAIL, RECV, SEND, Connection
-from async_adbc.service import Service
+from typing import Callable, List, Optional, Union
+from async_adbc.protocol import Connection, Response
+from async_adbc.service.base import Service
+from async_adbc.config import TEMP_PATH, DEFAULT_CHMOD, DATA_MAX_LENGTH
+from async_adbc.models import ReverseRule
+
 
 ProgressCallback = Callable[[str, int, int], None]
 
 
-class ReverseRule(BaseModel):
-    type: str
-    local: str
-    remote: str
-
-
 class LocalService(Service):
-    TEMP_PATH = "/data/local/tmp"
-    DEFAULT_CHMOD = 0o644
-    DATA_MAX_LENGTH = 65536
 
     async def shell_raw(self, cmd: str, *args) -> bytes:
         args = map(str, args)
@@ -43,15 +36,9 @@ class LocalService(Service):
         Run 'command arg1 arg2 ...' in a shell on the device, and return
         its output and error streams. Note that arguments must be separated
         by spaces. If an argument contains a space, it must be quoted with
-        double-quotes. Arguments cannot contain double quotes or things
+        double quotes. Arguments cannot contain double quotes or things
         will go very wrong.
-        Note that this is the non-interactive version of "adb shell"
-
-        Args:
-            cmd (str): 命令
-
-        Returns:
-            str: 返回打印
+        Note that this is the non-interactive version of "adb shell".
         """
         str_args = map(str, args)
         cmd = " ".join([cmd, *str_args])
@@ -64,15 +51,9 @@ class LocalService(Service):
         """
         返回shell的读取器，用来持续读取打印。
 
-        NOTE: 属于底层方法，你可以用 `shell_raw` 返回的 `Response`获得 `Reader`，效果是一样的。
+        NOTE: 属于底层方法，你可以用 `shell_raw` 返回的 `Response` 获得 `Reader`，效果是一样的。
 
         WARNING: `reader` 需要手动关闭。
-
-        Args:
-            cmd (str): 命令
-
-        Returns:
-            StreamReader: 读取器
         """
 
         args = map(str, args)
@@ -85,15 +66,6 @@ class LocalService(Service):
         开启adbd远程调试端口
 
         等同于： adb tcpip <port>
-
-        Args:
-            port (int): 端口
-
-        Raises:
-            RuntimeError: _description_
-
-        Returns:
-            str: 返回打印
         """
 
         res = await self.request("tcpip", str(port))
@@ -111,9 +83,6 @@ class LocalService(Service):
         手机端的adbd进程以root权限启动
 
         NOTE: 这个方法调用后会导致adb短暂无法跟设备通信
-
-        Raises:
-            RuntimeError: 启动失败
         """
 
         res = await self.request("root:")
@@ -131,9 +100,6 @@ class LocalService(Service):
         手机端的adbd进程取消root权限
 
         NOTE: 这个方法调用后会导致adb短暂无法跟设备通信
-
-        Raises:
-            RuntimeError: 启动失败
         """
         res = await self.request("unroot:")
         with res:
@@ -150,24 +116,18 @@ class LocalService(Service):
         wait_for: bool = True,
         timeout: int = 60,
         wait_interval: int = 1,
-        option: Literal[
-            "bootloader", "recovery", "sideload", "sideload-auto-reboot", ""
-        ] = "",
+        option: Optional[
+            Union["Literal['bootloader']", "Literal['recovery']", "Literal['sideload']", "Literal['sideload-auto-reboot']"]
+        ] = None,
     ):
         """
         重启设备
-
-        Args:
-            wait_for (bool, optional): 是否等待重启. Defaults to True.
-            timeout (int, optional): 等待超时，单位秒. Defaults to 60.
-            wait_interval (int, optional): 等待间隔，单位秒. Defaults to 1.
-            option (Optional[Literal[&quot;bootloader&quot;,&quot;recovery&quot;,&quot;sideload&quot;,&quot;sideload, optional): `reboot:`命令的额外参数，对应`adb reboot <option>`. Defaults to None.
-
-        Raises:
-            TimeoutError: 超过timeout都没有重启完毕时抛出
         """
 
-        await self.request("reboot", option)
+        args = ["reboot"]
+        if option:
+            args.append(option)
+        await self.request(*args)
 
         if not wait_for:
             return
@@ -181,13 +141,6 @@ class LocalService(Service):
     async def wait_shutdown(self, timeout, wait_interval):
         """
         等待设备关机
-
-        Args:
-            timeout (int): 等待超时，单位秒
-            wait_interval (int): 等待间隔，单位秒
-
-        Raises:
-            TimeoutError: 超过timeout都没有关闭完毕时抛出
         """
         while timeout:
             try:
@@ -208,13 +161,6 @@ class LocalService(Service):
     async def wait_boot_complete(self, timeout: int = 60, wait_interval: int = 1):
         """
         等待设备启动完毕
-
-        Args:
-            timeout (int, optional): 等待超时，单位秒. Defaults to 60.
-            wait_interval (int, optional): 等待间隔，单位秒. Defaults to 1.
-
-        Raises:
-            TimeoutError: 超过timeout都没有重启完毕时抛出
         """
         while timeout:
             try:
@@ -235,18 +181,11 @@ class LocalService(Service):
     async def remount(self):
         """
         remount 是一种 adb 命令，用于请求 adbd 将设备的文件系统重新挂载为可读写模式，而不是只读模式。
-        默认情况 /system 目录是只读的，非root用户无权限写入，remount就是重新挂载未可写。
+        默认情况 /system 目录是只读的，非root用户无权限写入，remount就是重新挂载为可写。
         通常，在执行 "adb sync" 或 "adb push" 请求之前，都需要使用这种命令。
-        但是，由于非root设备不允许这种操作，所以这种请求可能无法成功。
-
+        但是，由于非root设备不允许这种操作，所以这种请求可能不会成功。
 
         等同于： adb remount
-
-        Ask adbd to remount the device's filesystem in read-write mode,
-        instead of read-only. This is usually necessary before performing
-        an "adb sync" or "adb push" request.
-        This request may not succeed on certain builds which do not allow
-        that.
         """
         res = await self.request("remount:")
 
@@ -263,7 +202,7 @@ class LocalService(Service):
         self,
         src: str,
         dst: str,
-        chmode: int = DEFAULT_CHMOD,
+        chmod: int = DEFAULT_CHMOD,
         progress_cb: Optional[ProgressCallback] = None,
     ):
         """
@@ -273,18 +212,12 @@ class LocalService(Service):
         只支持文件，不支持目录。
 
         等同于：adb push src dst
-
-        Args:
-            src (str): 文件路径
-            dst (str): 目标文件路径，不可以是文件夹
-            chmode (int, optional): 文件权限. Defaults to DEFAULT_CHMOD.
-            progress_cb (Optional[ProgressCallback], optional): 进度回调. Defaults to None.
         """
 
         if not os.path.exists(src) or os.path.isdir(src):
             raise FileNotFoundError(f"src:{src} 路径不存在或不是文件")
 
-        # 推送流程是独立控制的不是请求响应流程，因此不能用 self.reqeust方法
+        # 推送流程是独立控制的不是请求响应流程，所以不能用 self.reqeust 方法
 
         conn = await self.create_connection()
         await conn.request("sync:")
@@ -293,25 +226,25 @@ class LocalService(Service):
         timestamp = int(stat.st_mtime)
         size = stat.st_size
         has_send = 0
-        chmode = chmode | S_IFREG
-        args = f"{dst},{chmode}".encode()
+        chmod = chmod | S_IFREG
+        args = f"{dst},{chmod}".encode()
 
-        await conn.message(SEND, data=args)
+        await conn.message("SEND", data=args)
 
         with open(src, "rb") as stream:
             while True:
-                chunk = stream.read(self.DATA_MAX_LENGTH)
+                chunk = stream.read(DATA_MAX_LENGTH)
                 if not chunk:
                     break
                 chunk_size = len(chunk)
                 has_send += chunk_size
 
-                await conn.message(DATA, data=chunk)
+                await conn.message("DATA", data=chunk)
 
                 if progress_cb:
                     progress_cb(src, size, has_send)
 
-        await conn.message(DONE, timestamp)
+        await conn.message("DONE", timestamp)
         await conn._check_status()
         conn.close()
 
@@ -319,13 +252,6 @@ class LocalService(Service):
         """从设备的src路径拉取文件保存到本地的dest路径。只支持文件，不支持拉整个目录。
 
         等同于：adb pull
-
-        Args:
-            src (str): 设备上的文件路径
-            dst (str): 本地保存的路径
-
-        Raises:
-            RuntimeError: 请求失败
         """
 
         async def _read_data(conn: Connection):
@@ -340,20 +266,20 @@ class LocalService(Service):
         conn = await self.create_connection()
         await conn.request("sync:")
         b_src = src.encode()
-        await conn.message(RECV, data=b_src)
+        await conn.message("RECV", data=b_src)
 
         with open(dst, "wb") as stream:
             while True:
                 flag = await conn.reader.read(4)
                 flag = flag.decode()
-                if flag == DATA:
+                if flag == "DATA":
                     data = await _read_data(conn)
                     stream.write(data)
-                elif flag == DONE:
+                elif flag == "DONE":
                     await conn.reader.read(4)
                     conn.close()
                     return
-                elif flag == FAIL:
+                elif flag == "FAIL":
                     error = await _read_data(conn)
                     raise RuntimeError(error.decode())
 
@@ -363,9 +289,6 @@ class LocalService(Service):
         返回的一定是当前设备的代理规则。
 
         等同于：adb reverse --list
-
-        Returns:
-            list[ReverseRule]: 反向代理列表
         """
         res = await self.request("reverse", "list-forward")
         reverses: list[ReverseRule] = []
@@ -378,8 +301,8 @@ class LocalService(Service):
             if not line:
                 continue
 
-            _type, remote, local = line.split()
-            reverses.append(ReverseRule(type=_type, local=remote, remote=local))
+            type, remote, local = line.split()
+            reverses.append(ReverseRule(type=type, local=remote, remote=local))
 
         return reverses
 
@@ -393,18 +316,13 @@ class LocalService(Service):
         and <remote> corresponds to the socket on the host.
 
         the format of <local> is one of:
-        tcp:<port>      -> TCP connection on localhost:<port>
-        local:<path>    -> Unix local domain socket on <path>
+            tcp:<port>      -> TCP connection on localhost:<port>
+            local:<path>    -> Unix local domain socket on <path>
         the format of <remote> is one of:
-        tcp:<port>      -> TCP localhost:<port> on device
-        local:<path>    -> Unix local domain socket on device
-        jdwp:<pid>      -> JDWP thread on VM process <pid>
-        vsock:<CID>:<port> -> vsock on the given CID and port
-
-        Args:
-            remote (str): _description_
-            local (str): _description_
-            norebind (bool, optional): _description_. Defaults to False.
+            tcp:<port>      -> TCP localhost:<port> on device
+            local:<path>    -> Unix local domain socket on device
+            jdwp:<pid>      -> JDWP thread on VM process <pid>
+            vsock:<CID>:<port> -> vsock on the given CID and port
         """
 
         if norebind:
@@ -420,9 +338,6 @@ class LocalService(Service):
         """移除反向代理
 
         等同于：adb reverse --remove
-
-        Args:
-            remote (str): 设备本地端口
         """
         if isinstance(local, ReverseRule):
             local = local.local

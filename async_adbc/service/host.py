@@ -1,45 +1,29 @@
 from typing import TYPE_CHECKING, Any, AsyncGenerator, List, Optional, Union, cast
-from pydantic import BaseModel
-from async_adbc.service import Service
+from async_adbc.service.base import Service
 from async_adbc.device import Device, Status
 from async_adbc.protocol import Connection
+from async_adbc.exceptions import DeviceNotFoundError
+from async_adbc.models import DeviceStatusNotification, ForwardRule
+
 
 if TYPE_CHECKING:
     from async_adbc.adbclient import ADBClient
 
 
-class DeviceNotFoundError(Exception):
-    def __init__(self, serialno: str, *args: object) -> None:
-        super().__init__(f"{serialno} 不存在", *args)
-
-
-class DeviceStatusNotification(BaseModel):
-    serialno: str
-    status: Status
-
-
-class ForwardRule(BaseModel):
-    serialno: str
-    local: str
-    remote: str
-
-
 class HostService(Service):
     """
-    请求参数host-prefix 有 host、host-serial、host-usb、host-local三个值
+    请求参数host_prefix 有 host、host-serial、host-usb、host-local 四个值
     1. host : 当devices只有一个设备的时候，将指令默认发给这个设备，如果存在多个设备，会失败
-    2. host-serial： 将指令定向发送到序号serial的设备， 等同于 `adb -s <设备序号>`
-    3. host-usb: 只有一台设备以usb连接时，将指令默认发给这个usb设备， adb命令中没有对应的用法
-    4. host-local：只有一台模拟器设备连接的时候，将指令默认发给这个模拟器设备，adb命令没有对应的用法
-    1其实同时包含了3、4的规则，为的就是敲adb指令的时候能够有个默认设备去执行指令，例如`adb shell`，调用默认设备的shell命令。
-    我们的ADBClient就不需要这么麻烦，我们只区分hsot和serial，host是用于设备无关服务，serial则是用于设备有关服务。
+    2. host-serial: 将指令定向发送到序号serial的设备，等同于 `adb -s <设备序号>`
+    3. host-usb: 只有一台设备以usb连接时，将指令默认发给这个usb设备，adb命令中没有对应的用法
+    4. host-local: 只有一台模拟器设备连接的时候，将指令默认发给这个模拟器设备，adb命令没有对应的用法
+    1其实同时包含了3、4的规则，为的就是敲adb命令的时候能够有个默认设备去执行指令，比如`adb shell`，调用默认设备的shell命令。
+    我们的ADBClient就不需要这么麻烦，我们只区分host和serial，host是用于设备无关服务，serial则是用于设备有关服务。
     """
 
     HOST = "host"  # 当devices只有一个设备的时候，将指令默认发给这个设备，如果存在多个设备，会失败
-    HOST_SERIAL = (
-        "host-serial"  # 将指令定向发送到序号serial的设备， 等同于 `adb -s <设备序号>`
-    )
-    # HOST_USB = "host-usb"  # 只有一台设备以usb连接时，将指令默认发给这个usb设备， adb命令中没有对应的用法
+    HOST_SERIAL = "host-serial"  # 将指令定向发送到序号serial的设备，等同于 `adb -s <设备序号>`
+    # HOST_USB = "host-usb"  # 只有一台设备以usb连接时，将指令默认发给这个usb设备，adb命令中没有对应的用法
     # HOST_LOCAL = "host-local"  # 只有一台模拟器设备连接的时候，将指令默认发给这个模拟器设备，adb命令没有对应的用法
 
     async def version(self) -> int:
@@ -65,7 +49,7 @@ class HostService(Service):
         等同：adb kill-server
 
         Ask the ADB server to quit immediately. This is used when the
-        ADB client detects that an obsolete server is running after an
+        client detects that an obsolete server is running after an
         upgrade.
         """
         await self.request(self.HOST, "kill")
@@ -80,7 +64,7 @@ class HostService(Service):
         state. devices-l includes the device paths in the state.
         After the OKAY, this is followed by a 4-byte hex len,
         and a string that will be dumped as-is by the client, then
-        the connection is closed
+        the connection is closed.
         """
         res = await self.request(self.HOST, "devices-l")
         with res:
@@ -121,9 +105,9 @@ class HostService(Service):
         raise DeviceNotFoundError(serialno)
 
     async def devices_track(self) -> AsyncGenerator[DeviceStatusNotification, Any]:
-        """追踪设备状态，可以循环读取这个一部生成器，一旦设备状态改编就会返回一个通知消息。
+        """追踪设备状态，可以循环读取这个异步生成器，一旦设备状态改变就会返回一个通知消息。
 
-        可以轻易的做到跟踪设备状态变更的通知
+        可以轻易地做到跟踪设备状态变更的通知。
 
         等同：adb没有实现
 
@@ -131,7 +115,7 @@ class HostService(Service):
         connection. Instead, a new device list description is sent
         each time a device is added/removed or the state of a given
         device changes (hex4 + content). This allows tools like DDMS
-        to track the state of connected devices in real-time without
+        to track the state of connected devices in real time without
         polling the server repeatedly.
         Returns:
             AsyncGenerator[DeviceStatusNotification, Any]: 设备状态消息生成器
@@ -222,24 +206,18 @@ class HostService(Service):
 
         Asks the ADB server to forward local connections from <local>
         to the <remote> address on a given device.
-        There, <host-prefix> can be one of the
+        There, <host_prefix> can be one of the
         host-serial/host-usb/host-local/host prefixes as described previously
         and indicates which device/emulator to target.
 
         the format of <local> is one of:
-        tcp:<port>      -> TCP connection on localhost:<port>
-        local:<path>    -> Unix local domain socket on <path>
+            tcp:<port>      -> TCP connection on localhost:<port>
+            local:<path>    -> Unix local domain socket on <path>
         the format of <remote> is one of:
-        tcp:<port>      -> TCP localhost:<port> on device
-        local:<path>    -> Unix local domain socket on device
-        jdwp:<pid>      -> JDWP thread on VM process <pid>
-        vsock:<CID>:<port> -> vsock on the given CID and port
-
-        Args:
-            serialno (str): 设备序号
-            local (str): 本地端口 有多种格式
-            remote (str): 远程端口 有多种格式
-            norebind (bool, optional): 不重复绑定，如果发现端口已映射会抛出错误. Defaults to False.
+            tcp:<port>      -> TCP localhost:<port> on device
+            local:<path>    -> Unix local domain socket on device
+            jdwp:<pid>      -> JDWP thread on VM process <pid>
+            vsock:<CID>:<port> -> vsock on the given CID and port
         """
         if norebind:
             res = await self.request(
