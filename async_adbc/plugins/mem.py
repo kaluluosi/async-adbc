@@ -1,46 +1,40 @@
 import re
-from pydantic import BaseModel, Field
+
 from async_adbc.plugin import Plugin, register_plugin
 from async_adbc.models import MemInfo, MemStat
 
 
 @register_plugin("mem", "mem")
 class MemPlugin(Plugin):
-    @property
-    async def info(self) -> MemInfo:
-        """
-        获取内存信息
+    async def get_info(self) -> MemInfo:
+        """获取内存信息
 
-        单位是 byte
+        单位是 kB
 
         Returns:
-            MemInfo:
+            MemInfo: 内存信息
         """
-
         mem_total_str = await self._device.shell("cat /proc/meminfo|grep MemTotal")
         swap_total_str = await self._device.shell("cat /proc/meminfo|grep SwapTotal")
 
         mem_total_match = re.search(r"\d+", mem_total_str)
         swap_total_match = re.search(r"\d+", swap_total_str)
 
-        mem_total = mem_total_match.group() if mem_total_match else 0
-        swap_total = swap_total_match.group() if swap_total_match else 0
+        mem_total = int(mem_total_match.group()) if mem_total_match else 0
+        swap_total = int(swap_total_match.group()) if swap_total_match else 0
 
-        return MemInfo(mem_total=int(mem_total), swap_total=int(swap_total))
+        return MemInfo(mem_total=mem_total, swap_total=swap_total)
 
     async def stat(self, package_name: str) -> MemStat:
-        """
-        获取app的内存性能
+        """获取应用的内存统计信息
 
-        单位是 byte
-
-        _extended_summary_
+        单位是 kB
 
         Args:
-            package_name (str): _description_
+            package_name: 包名
 
         Returns:
-            _type_: _description_
+            MemStat: 内存统计信息
         """
         total_meminfo_re = re.compile(
             r"\s*TOTAL\s+(?P<pss>\d+)\s+(?P<private_dirty>\d+)\s+(?P<private_clean>\d+)\s+(?P<swapped_dirty>\d+)\s+(?P<heap_size>\d+)\s+(?P<heap_alloc>\d+)\s+(?P<heap_free>\d+)"

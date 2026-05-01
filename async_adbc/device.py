@@ -3,7 +3,7 @@ import re
 import typing
 
 from async_lru import alru_cache
-from async_adbc.protocol import Connection
+from async_adbc.protocol.connection import Connection
 from async_adbc.service.local import LocalService
 
 from async_adbc.plugins._registry import get_registry
@@ -26,7 +26,6 @@ class Device(LocalService):
         self.adbc = adbc
         self.serialno = serialno
 
-        # 动态加载插件
         self._load_plugins()
 
     def _load_plugins(self):
@@ -40,18 +39,15 @@ class Device(LocalService):
         await conn.transport_mode(self.serialno)
         return conn
 
-    @property
     @alru_cache
-    async def properties(self) -> typing.Dict[str, str]:
-        """获取设备props
-
-        一些插件要用到所以挪到device里
+    async def get_properties(self) -> typing.Dict[str, str]:
+        """获取设备属性
 
         Returns:
-            dict[str, str]: _description_
+            dict[str, str]: 设备属性字典
         """
         res = await self.shell("getprop")
-        result_pattern = "^\[([\s\S]*?)\]: \[([\s\S]*?)\]\r?$"  # type: ignore
+        result_pattern = r"^\[([\s\S]*?)\]: \[([\s\S]*?)\]\r?$"
         lines = res.splitlines()
         properties = {}
         for line in lines:

@@ -4,8 +4,12 @@ from async_adbc.models import GPUInfo
 
 @register_plugin("gpu", "gpu")
 class GPUPlugin(Plugin):
-    @property
-    async def info(self) -> GPUInfo:
+    async def get_info(self) -> GPUInfo:
+        """获取 GPU 信息
+
+        Returns:
+            GPUInfo: GPU 信息
+        """
         text: str = await self._device.shell("dumpsys SurfaceFlinger |grep GLES")
         text = text.split(":")[1]
         manufactor, name, opengl = text.split(",")[:3]

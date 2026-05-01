@@ -1,15 +1,23 @@
 import re
 from typing import Dict
 from collections import defaultdict
+
+from async_lru import alru_cache
+
 from async_adbc.plugin import Plugin, register_plugin
 
 
 @register_plugin("prop", "prop")
 class PropPlugin(Plugin):
-    @property
-    async def properties(self) -> Dict[str, str]:
+    @alru_cache
+    async def get_properties(self) -> Dict[str, str]:
+        """获取所有属性
+
+        Returns:
+            dict[str, str]: 属性字典
+        """
         res = await self._device.shell("getprop")
-        result_pattern = "^\[([\s\S]*?)\]: \[([\s\S]*?)\]\r?$"  # type: ignore
+        result_pattern = r"^\[([\s\S]*?)\]: \[([\s\S]*?)\]\r?$"
         lines = res.splitlines()
         properties = defaultdict(lambda: "")
         for line in lines:
@@ -19,6 +27,14 @@ class PropPlugin(Plugin):
 
         return properties
 
-    async def get(self, property_name: str):
-        properties = await self.properties
+    async def get(self, property_name: str) -> str:
+        """获取属性
+
+        Args:
+            property_name: 属性名
+
+        Returns:
+            str: 属性值
+        """
+        properties = await self.get_properties()
         return properties[property_name]
