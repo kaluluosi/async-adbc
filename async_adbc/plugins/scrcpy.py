@@ -2,10 +2,13 @@ import os
 import asyncio
 import struct
 import time
-from typing import Callable, Optional
+from typing import Callable, Optional, TYPE_CHECKING
 from collections import deque
 from importlib import resources
 from async_adbc.plugin import Plugin, register_plugin
+
+if TYPE_CHECKING:
+    from async_adbc.device import Device
 
 
 @register_plugin("scrcpy", "scrcpy")
@@ -64,7 +67,7 @@ class ScrcpyPlugin(Plugin):
             "app_process",
             "/data/local/tmp",
             "scrcpy.Server",
-            f"log_level=info",
+            "log_level=info",
             f"bit_rate={bit_rate}",
         ]
         if max_size > 0:
@@ -96,14 +99,14 @@ class ScrcpyPlugin(Plugin):
         if self._server_reader:
             try:
                 self._server_reader.feed_eof()
-            except:
+            except Exception:
                 pass
 
         # 移除端口转发
         if self._local_port:
             try:
                 await self._device.forward.forward_remove(f"tcp:{self._local_port}")
-            except:
+            except Exception:
                 pass
 
         self._server_reader = None
