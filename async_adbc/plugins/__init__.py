@@ -15,6 +15,7 @@ from . import logcat  # noqa: F401
 from . import minicap  # noqa: F401
 from . import wm  # noqa: F401
 from . import input  # noqa: F401
+from . import scrcpy  # noqa: F401
 
 
 # 重新导出插件类以保持向后兼容
@@ -34,6 +35,7 @@ from .logcat import LogcatPlugin
 from .minicap import MinicapPlugin
 from .wm import WMPlugin
 from .input import InputPlugin
+from .scrcpy import ScrcpyPlugin
 
 
 __all__ = [
@@ -53,4 +55,5 @@ __all__ = [
     "MinicapPlugin",
     "WMPlugin",
     "InputPlugin",
+    "ScrcpyPlugin",
 ]
