@@ -1,5 +1,6 @@
 site_name: async-adbc
 site_description: Async ADBC - Async ADB Client
+site_url: https://kaluluosi.github.io/async-adbc/
 repo_name: async-adbc
 repo_url: https://github.com/kaluluosi/async-adbc
 
