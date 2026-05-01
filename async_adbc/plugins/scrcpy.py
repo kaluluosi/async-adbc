@@ -393,11 +393,13 @@ class InputController:
         y_scaled = int(y * 0x10000 / self._screen_height)
         pressure_scaled = int(pressure * 0xFFFF)
         # Touch event format: type (2) + action (1) + pointer id (8) + x (4) + y (4) + pressure (2) + buttons (4)
+        # Use 0xFFFFFFFFFFFFFFFF as pointer id (-1 in two's complement for 64-bit unsigned)
+        pointer_id = 0xFFFFFFFFFFFFFFFF
         data = struct.pack(
             '!BBQiiHI',
             self.TYPE_INJECT_TOUCH_EVENT,
             action,
-            -1,  # pointer id (using -1 as default)
+            pointer_id,
             x_scaled,
             y_scaled,
             pressure_scaled,
