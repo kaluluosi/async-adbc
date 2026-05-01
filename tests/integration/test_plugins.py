@@ -1,4 +1,5 @@
 """插件集成测试模块"""
+
 import pytest
 
 from async_adbc.client import ADBClient
@@ -171,6 +172,39 @@ class TestTempPluginIntegration:
 
 @pytest.mark.integration
 @pytest.mark.asyncio
+class TestMinicapPluginIntegration:
+    """测试 MinicapPlugin 集成"""
+
+    async def test_init_and_start_stop(self):
+        """测试初始化、启动和停止 minicap"""
+        adbc = ADBClient()
+        device = await adbc.device("emulator-5554")
+        try:
+            # 初始化
+            await device.minicap.init()
+
+            # 启动 minicap
+            await device.minicap.start()
+
+            # 等待一下让服务启动
+            import asyncio
+            await asyncio.sleep(1)
+
+            # 停止
+            await device.minicap.stop()
+
+        finally:
+            # 确保停止，防止端口占用
+            try:
+                await device.minicap.stop()
+            except:
+                pass
+            device.close()
+            adbc.close()
+
+
+@pytest.mark.integration
+@pytest.mark.asyncio
 class TestScrcpyPluginIntegration:
     """测试 ScrcpyPlugin 集成"""
 
@@ -181,27 +215,28 @@ class TestScrcpyPluginIntegration:
         try:
             # 初始化
             await device.scrcpy.init()
-            
+
             # 启动 scrcpy
             await device.scrcpy.start(max_size=720, bit_rate=2000000)
-            
+
             # 等待一下让服务启动
             import asyncio
+
             await asyncio.sleep(1)
-            
+
             # 获取一帧
             frame = await device.scrcpy.get_frame()
             # 可能第一次获取不到，不强制断言
             if frame:
                 assert isinstance(frame, bytes)
                 assert len(frame) > 0
-            
+
             # 模拟点击
             await device.scrcpy.tap(360, 640)
-            
+
             # 停止
             await device.scrcpy.stop()
-            
+
         finally:
             # 确保停止，防止端口占用
             try:
@@ -217,15 +252,16 @@ class TestScrcpyPluginIntegration:
         device = await adbc.device("emulator-5554")
         try:
             await device.scrcpy.start(max_size=720, bit_rate=2000000)
-            
+
             import asyncio
+
             await asyncio.sleep(1)
-            
+
             # 输入文本
             await device.scrcpy.text("test scrcpy")
-            
+
             await device.scrcpy.stop()
-            
+
         finally:
             try:
                 await device.scrcpy.stop()
