@@ -49,6 +49,7 @@ build-backend = "hatchling.build"
 
 [tool.ruff.lint]
 fixable = ["ALL"]
+ignore = ["F401"]
 
 [tool.ruff.format]
 quote-style = "double"

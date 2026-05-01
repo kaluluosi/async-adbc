@@ -1,20 +1,20 @@
 # 导入所有插件以触发注册
-from . import pm
-from . import prop
-from . import cpu
-from . import gpu
-from . import mem
-from . import fps
-from . import battery
-from . import temp
-from . import traffic
-from . import utils
-from . import forward
-from . import am
-from . import logcat
-from . import minicap
-from . import wm
-from . import input
+from . import pm  # noqa: F401
+from . import prop  # noqa: F401
+from . import cpu  # noqa: F401
+from . import gpu  # noqa: F401
+from . import mem  # noqa: F401
+from . import fps  # noqa: F401
+from . import battery  # noqa: F401
+from . import temp  # noqa: F401
+from . import traffic  # noqa: F401
+from . import utils  # noqa: F401
+from . import forward  # noqa: F401
+from . import am  # noqa: F401
+from . import logcat  # noqa: F401
+from . import minicap  # noqa: F401
+from . import wm  # noqa: F401
+from . import input  # noqa: F401
 
 
 # 重新导出插件类以保持向后兼容
