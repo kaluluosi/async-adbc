@@ -1,3 +1,4 @@
+"""测试配置与共享 Fixtures 模块"""
 import asyncio
 from unittest.mock import AsyncMock, MagicMock, patch
 
@@ -11,6 +12,7 @@ from async_adbc.models import DeviceStatusNotification, ForwardRule, ReverseRule
 
 @pytest.fixture
 def mock_reader():
+    """Mock StreamReader 对象"""
     reader = MagicMock()
     reader.read = AsyncMock(return_value=b"OKAY")
     reader.readexactly = AsyncMock(return_value=b"OKAY")
@@ -19,6 +21,7 @@ def mock_reader():
 
 @pytest.fixture
 def mock_writer():
+    """Mock StreamWriter 对象"""
     writer = MagicMock()
     writer.write = MagicMock()
     writer.drain = AsyncMock()
@@ -29,6 +32,7 @@ def mock_writer():
 
 @pytest.fixture
 def mock_connection(mock_reader, mock_writer):
+    """Mock Connection 对象"""
     conn = MagicMock(spec=Connection)
     conn.reader = mock_reader
     conn.writer = mock_writer
@@ -43,6 +47,7 @@ def mock_connection(mock_reader, mock_writer):
 
 @pytest.fixture
 def mock_adbclient(mock_connection):
+    """Mock ADBClient 对象"""
     client = MagicMock(spec=ADBClient)
     client.host = "127.0.0.1"
     client.port = 5037
@@ -64,6 +69,7 @@ def mock_adbclient(mock_connection):
 
 @pytest.fixture
 def mock_device(mock_adbclient, mock_connection):
+    """Mock Device 对象"""
     device = MagicMock(spec=Device)
     device.adbc = mock_adbclient
     device.serialno = "emulator-5554"
@@ -90,6 +96,7 @@ def mock_device(mock_adbclient, mock_connection):
 
 @pytest.fixture
 def mock_shell_output(mock_device):
+    """Mock shell 命令输出的工厂函数"""
     def _mock_shell_output(cmd: str, output: str):
         mock_device.shell.side_effect = lambda c, *args: output if c in cmd or cmd in c else ""
     return _mock_shell_output
@@ -97,6 +104,7 @@ def mock_shell_output(mock_device):
 
 @pytest.fixture
 def mock_shell_raw_output(mock_device):
+    """Mock shell_raw 命令输出的工厂函数"""
     def _mock_shell_raw_output(cmd: str, output: bytes):
         mock_device.shell_raw.side_effect = lambda c, *args: output if c in cmd or cmd in c else b""
     return _mock_shell_raw_output
@@ -104,6 +112,7 @@ def mock_shell_raw_output(mock_device):
 
 @pytest.fixture
 def sample_cpuinfo_output():
+    """示例 /proc/cpuinfo 输出"""
     return """
 processor       : 0
 BogoMIPS        : 38.40
@@ -119,6 +128,7 @@ Hardware        : Qualcomm Technologies, Inc MSM8998
 
 @pytest.fixture
 def sample_proc_stat_output():
+    """示例 /proc/stat 输出"""
     return """cpu  4321 123 4567 89012 234 567 890 123 456 789
 cpu0 1234  45 1234 23456  67 123 456  78  89  90
 cpu1  987  32  987 21098  56  98 321  45  56  67
@@ -135,6 +145,7 @@ procs_blocked 0
 
 @pytest.fixture
 def sample_meminfo_output():
+    """示例 /proc/meminfo 输出"""
     return """MemTotal:        5872084 kB
 MemFree:         2156789 kB
 MemAvailable:    3456789 kB
@@ -148,6 +159,7 @@ SwapFree:        1234567 kB
 
 @pytest.fixture
 def sample_dumpsys_meminfo_output():
+    """示例 dumpsys meminfo 输出"""
     return """Applications Memory Usage (in Kilobytes):
 Uptime: 1234567 Realtime: 1234567
 
