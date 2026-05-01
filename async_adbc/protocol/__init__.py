@@ -1,5 +1,4 @@
-# 兼容层 - 新代码请从 async_adbc.protocol 导入
-from .protocol.consts import (
+from .consts import (
     HEADER_LENGTH,
     OKAY,
     FAIL,
@@ -12,8 +11,8 @@ from .protocol.consts import (
     DONE,
     QUIT,
 )
-from .protocol.response import Response
-from .protocol.connection import (
+from .response import Response
+from .connection import (
     Connection,
     encode_length,
     decode_length,
