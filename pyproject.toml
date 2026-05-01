@@ -64,5 +64,5 @@ markers = [
     "integration: Integration tests that require real device",
 ]
 filterwarnings = [
-    "ignore::async_lru.AlruCacheLoopResetWarning",
+    "ignore:alru_cache detected event loop change",
 ]
