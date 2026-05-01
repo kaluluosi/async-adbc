@@ -31,8 +31,11 @@ class ScrcpyPlugin(Plugin):
         """
         初始化 scrcpy，推送 scrcpy-server.jar 到设备
         """
-        with resources.path('async_adbc', 'vendor') as path:
-            SCRCPY_LIBS = os.path.join(path, "scrcpy")
+        # 用 __file__ 定位 vendor 目录，更兼容
+        plugin_dir = os.path.dirname(os.path.abspath(__file__))
+        async_adbc_dir = os.path.dirname(plugin_dir)
+        vendor_dir = os.path.join(async_adbc_dir, "vendor")
+        SCRCPY_LIBS = os.path.join(vendor_dir, "scrcpy")
 
         exists = await self._device.file_exists("/data/local/tmp/scrcpy-server.jar")
         if exists:
