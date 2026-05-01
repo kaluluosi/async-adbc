@@ -46,6 +46,9 @@ class MemPlugin(Plugin):
             mem_total = int(mem_total_match.group()) if mem_total_match else 0
             swap_total = int(swap_total_match.group()) if swap_total_match else 0
 
+        if check and (mem_total == 0 or swap_total == 0):
+            raise RuntimeError("无法获取内存信息")
+
         return MemInfo(mem_total=mem_total, swap_total=swap_total)
 
     async def stat(self, package_name: str, check: bool = False) -> MemStat:

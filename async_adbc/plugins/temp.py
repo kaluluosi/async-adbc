@@ -80,4 +80,7 @@ class TempPlugin(Plugin):
                 if match:
                     battery_temp = float(match.group(1)) / 10.0
 
+        if check and (cpu_temp == 0 and gpu_temp == 0 and skin_temp == 0 and battery_temp == 0):
+            raise RuntimeError("无法获取温度信息")
+
         return TempStat(cpu=cpu_temp, gpu=gpu_temp, skin=skin_temp, battery=battery_temp)
