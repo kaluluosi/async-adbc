@@ -24,7 +24,7 @@ class MinicapPlugin(Plugin):
         if exists:
             return
 
-        props = await self._device.properties
+        props = await self._device.get_properties()
         abi = props.get("ro.product.cpu.abi", "unknow")
         pre_sdk = props.get("ro.build.version.preview_sdk", "unknow")
         rel_sdk = props.get("ro.build.version.release", "unknow")
