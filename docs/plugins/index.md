@@ -22,6 +22,7 @@ async-adbc 提供了丰富的插件来封装各种 Android 设备操作功能。
 | [TrafficPlugin](./traffic.md) | `device.traffic` | 流量统计 |
 | [UtilsPlugin](./utils.md) | `device.utils` | 工具方法 |
 | [WMPlugin](./wm.md) | `device.wm` | 窗口管理（分辨率、方向） |
+| [ScrcpyPlugin](./scrcpy.md) | `device.scrcpy` | Scrcpy 屏幕镜像和控制 |
 
 ## 基本使用
 

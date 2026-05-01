@@ -114,6 +114,7 @@ asyncio.run(main())
 | `device.traffic` | 流量统计 |
 | `device.utils` | 工具方法 |
 | `device.wm` | 窗口管理（分辨率、方向） |
+| `device.scrcpy` | Scrcpy 屏幕镜像和控制 |
 
 ## 示例
 
