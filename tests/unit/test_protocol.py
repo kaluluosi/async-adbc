@@ -11,6 +11,7 @@ from async_adbc.protocol.connection import (
 from async_adbc.protocol.response import Response
 
 
+@pytest.mark.unit
 class TestEncodeDecode:
     """测试编解码函数"""
 
@@ -32,6 +33,7 @@ class TestEncodeDecode:
         assert pack("hello world") == b"000bhello world"
 
 
+@pytest.mark.unit
 class TestConnection:
     """测试 Connection 类"""
 
@@ -100,6 +102,7 @@ class TestConnection:
         mock_writer.close.assert_called_once()
 
 
+@pytest.mark.unit
 class TestResponse:
     """测试 Response 类"""
 

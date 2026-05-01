@@ -5,6 +5,7 @@ from unittest.mock import AsyncMock
 from async_adbc.plugins.pm import PMPlugin
 
 
+@pytest.mark.unit
 class TestPMPlugin:
     """测试 PMPlugin 类"""
 

@@ -16,6 +16,7 @@ from async_adbc.models import (
 )
 
 
+@pytest.mark.unit
 class TestDeviceStatusNotification:
     """测试 DeviceStatusNotification 模型"""
 
@@ -26,6 +27,7 @@ class TestDeviceStatusNotification:
         assert notif.status == "device"
 
 
+@pytest.mark.unit
 class TestForwardRule:
     """测试 ForwardRule 模型"""
 
@@ -37,6 +39,7 @@ class TestForwardRule:
         assert rule.remote == "tcp:8080"
 
 
+@pytest.mark.unit
 class TestReverseRule:
     """测试 ReverseRule 模型"""
 
@@ -48,6 +51,7 @@ class TestReverseRule:
         assert rule.remote == "tcp:8080"
 
 
+@pytest.mark.unit
 class TestCPUFreq:
     """测试 CPUFreq 模型"""
 
@@ -66,6 +70,7 @@ class TestCPUFreq:
         assert freq.max == 0
 
 
+@pytest.mark.unit
 class TestCPUStat:
     """测试 CPUStat 模型"""
 
@@ -100,6 +105,7 @@ class TestCPUStat:
         assert stat.usage == 50.0
 
 
+@pytest.mark.unit
 class TestCPUUsage:
     """测试 CPUUsage 模型"""
 
@@ -116,6 +122,7 @@ class TestCPUUsage:
         assert usage.normalized == 0.0
 
 
+@pytest.mark.unit
 class TestCPUInfo:
     """测试 CPUInfo 模型"""
 
@@ -132,6 +139,7 @@ class TestCPUInfo:
         assert info.core == 8
 
 
+@pytest.mark.unit
 class TestProcessCPUStat:
     """测试 ProcessCPUStat 模型"""
 
@@ -156,6 +164,7 @@ class TestProcessCPUStat:
         assert diff.stime == 2000
 
 
+@pytest.mark.unit
 class TestMemInfo:
     """测试 MemInfo 模型"""
 
@@ -172,6 +181,7 @@ class TestMemInfo:
         assert info.swap_total == 0
 
 
+@pytest.mark.unit
 class TestMemStat:
     """测试 MemStat 模型"""
 
@@ -194,6 +204,7 @@ class TestMemStat:
         assert stat.pss == 0
 
 
+@pytest.mark.unit
 class TestTempStat:
     """测试 TempStat 模型"""
 
@@ -209,6 +220,7 @@ class TestTempStat:
         assert stat.cpu == 0.0
 
 
+@pytest.mark.unit
 class TestFpsStat:
     """测试 FpsStat 模型"""
 

@@ -5,6 +5,7 @@ from unittest.mock import AsyncMock
 from async_adbc.plugins.cpu import CPUPlugin
 
 
+@pytest.mark.unit
 class TestCPUPlugin:
     """测试 CPUPlugin 类"""
 

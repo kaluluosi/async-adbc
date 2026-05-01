@@ -54,3 +54,9 @@ indent-style = "space"
 
 [tool.pydocstyle]
 convention = "google"
+
+[tool.pytest.ini_options]
+markers = [
+    "unit: Unit tests that don't require real device",
+    "integration: Integration tests that require real device",
+]

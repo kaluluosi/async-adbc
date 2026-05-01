@@ -7,6 +7,7 @@ from async_adbc.device import Device
 from async_adbc.models import DeviceStatusNotification, ForwardRule
 
 
+@pytest.mark.unit
 class TestHostService:
     """测试 HostService 类"""
 

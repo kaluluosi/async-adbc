@@ -5,6 +5,7 @@ from unittest.mock import AsyncMock
 from async_adbc.plugins.temp import TempPlugin
 
 
+@pytest.mark.unit
 class TestTempPlugin:
     """测试 TempPlugin 类"""
 

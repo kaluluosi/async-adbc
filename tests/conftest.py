@@ -207,3 +207,12 @@ Uptime: 1234567 Realtime: 1234567
          MEMORY_USED:       123
   PAGECACHE_OVERFLOW:        45          MALLOC_SIZE:       567
 """
+
+
+# ========== 集成测试 Fixtures ==========
+
+@pytest.fixture(scope="session")
+def real_adbclient():
+    """真实的 ADBClient 对象（用于集成测试）"""
+    from async_adbc.client import ADBClient
+    return ADBClient()

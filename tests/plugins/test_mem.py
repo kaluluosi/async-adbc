@@ -5,6 +5,7 @@ from unittest.mock import AsyncMock
 from async_adbc.plugins.mem import MemPlugin
 
 
+@pytest.mark.unit
 class TestMemPlugin:
     """测试 MemPlugin 类"""
 

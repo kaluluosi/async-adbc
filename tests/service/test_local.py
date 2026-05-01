@@ -5,6 +5,7 @@ from unittest.mock import AsyncMock, MagicMock
 from async_adbc.device import Device
 
 
+@pytest.mark.unit
 class TestLocalService:
     """测试 LocalService 类"""
 
