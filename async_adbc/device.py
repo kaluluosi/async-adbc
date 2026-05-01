@@ -79,3 +79,7 @@ class Device(LocalService):
         """
         res = await self.shell("ls", file_path)
         return "No such file or directory" not in res
+
+    def close(self):
+        """关闭设备连接，释放资源"""
+        super().close()

@@ -12,21 +12,51 @@ adbc是跟adb server的客户端，也就是HOST SERVICES的封装。
 device是跟adbd守护进程的客户端，也就是LOCAL SERVICES的封装。
 """
 
-
 import abc
+import asyncio
+from typing import Optional
 
-from async_adbc.protocol import Connection, Response
+from async_adbc.protocol.connection import Connection, Response
 
 
 class Service(abc.ABC):
+    def __init__(self):
+        self._conn: Optional[Connection] = None
+        self._lock = asyncio.Lock()
+
     @abc.abstractmethod
     async def create_connection(self) -> Connection:
         ...
 
+    async def _get_connection(self) -> Connection:
+        async with self._lock:
+            if self._conn is None:
+                self._conn = await self.create_connection()
+            return self._conn
+
+    def _close_connection(self):
+        if self._conn is not None:
+            try:
+                self._conn.close()
+            except Exception:
+                pass
+            self._conn = None
+
+    def close(self):
+        self._close_connection()
+
     async def request(self, *args: str) -> Response:
-        conn = await self.create_connection()
-        return await conn.request(*args)
+        conn = await self._get_connection()
+        try:
+            return await conn.request(*args)
+        except Exception:
+            self._close_connection()
+            raise
 
     async def request_without_check(self, *args: str) -> Response:
-        conn = await self.create_connection()
-        return await conn.request_without_check(*args)
+        conn = await self._get_connection()
+        try:
+            return await conn.request_without_check(*args)
+        except Exception:
+            self._close_connection()
+            raise
