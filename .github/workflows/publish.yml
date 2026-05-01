@@ -1,59 +1,60 @@
-
-name: Upload Python Package
-run-name: ${{github.actor}} is publishing to pypi
+name: Publish PyPI
+run-name: ${{github.actor}} is publishing to PyPI
 
 on:
-    release:
-        types: [published]
-
-    workflow_dispatch:
-      inputs:
-        version:
-          description: 'Release version'
-          required: true
-          type: string
+  release:
+    types: [published]
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Release version'
+        required: true
+        type: string
 
 jobs:
-    # test:
-    #     uses: ./.github/workflows/test.yml
+  ci:
+    uses: ./.github/workflows/ci.yml
 
-    deploy:
-        runs-on: ubuntu-latest
-        # needs: [test]
-        steps:
-            - name: checkout
-              uses: actions/checkout@v4
-            
-            - name: Install Poetry-安装poetry
-              run: pipx install poetry
-            
-            - name: Set up Python
-              uses: actions/setup-python@v4
-              with:
-                  python-version: '3.9'
-                  cache: 'poetry'
-            
-            - name: 将Tag版本号填写到toml配置中
-              if: github.event.release.tag_name
-              run: poetry version ${{github.event.release.tag_name}}
+  deploy:
+    name: Publish to PyPI
+    runs-on: ubuntu-latest
+    needs: [ci]
 
-            - name: 将version参数更新到toml配置中
-              if: github.event.inputs.version
-              run: poetry version ${{github.event.inputs.version}}
-            
-            - name: Install dependencies
-              run: |
-                  poetry install
-            - name: Build package
-              run:  poetry build
-            - name: Publish package
-              run: |
-                poetry publish --username __token__ --password ${{ secrets.PYPI_API_TOKEN }}         
-          
-    docs:
-        needs: [deploy]
-        uses: ./.github/workflows/docs.yml
-        permissions:
-          contents: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
         with:
-          deploy: true
+          python-version: "3.9"
+
+      - name: Install uv
+        run: pip install uv
+
+      - name: Set version from release tag
+        if: github.event.release.tag_name
+        run: |
+          VERSION=${{github.event.release.tag_name}}
+          uv version ${VERSION#v}
+
+      - name: Set version from input
+        if: github.event.inputs.version
+        run: |
+          VERSION=${{github.event.inputs.version}}
+          uv version ${VERSION#v}
+
+      - name: Build package
+        run: uv build
+
+      - name: Publish to PyPI
+        run: uv publish --username __token__ --password ${{ secrets.PYPI_API_TOKEN }}
+
+  docs:
+    name: Deploy Docs
+    needs: [deploy]
+    uses: ./.github/workflows/docs.yml
+    permissions:
+      contents: write
+    with:
+      deploy: true

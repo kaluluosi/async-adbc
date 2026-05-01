@@ -1,0 +1,61 @@
+name: Integration Test
+run-name: ${{github.actor}} Integration Test - ${{github.ref_name}}
+
+on:
+  workflow_dispatch:
+  pull_request:
+    types: [labeled]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  integration-test:
+    name: Integration Test
+    runs-on: ubuntu-latest
+    if: github.event_name == 'workflow_dispatch' || contains(github.event.pull_request.labels.*.name, 'run-integration-tests')
+
+    services:
+      avd:
+        image: budtmo/docker-android:emulator_11.0
+        ports:
+          - 6080:6080
+          - 5554:5554
+          - 5555:5555
+        env:
+          EMULATOR_DEVICE: "Samsung Galaxy S10"
+          WEB_VNC: true
+        options: --device /dev/kvm
+
+    steps:
+      - name: Wait For AVD To Startup
+        uses: jakejarvis/wait-action@v0.1.1
+        with:
+          time: '60s'
+
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.9"
+
+      - name: Install uv
+        run: pip install uv
+
+      - name: Install dependencies
+        run: uv sync --all-extras --dev
+
+      - name: Install ADB
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y adb
+          adb version
+          adb devices
+          adb wait-for-device
+          adb shell service list
+
+      - name: Run integration tests
+        run: uv run pytest -m integration -v
