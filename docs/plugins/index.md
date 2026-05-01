@@ -1,28 +1,47 @@
-# 插件
+# 插件列表
 
-## Device插件
+async-adbc 提供了丰富的插件来封装各种 Android 设备操作功能。
 
-!!! NOTE
-    这些插件都在 `Device` 对象有对应的成员对象，可以直接调用。
+## 插件概览
 
-|实例名称|包路径|说明|
-|---|---|---|
-|am|async_adbc.plugins.am:ActivityManagerPlugin|activity管理|
-|battery|async_adbc.plugins.battery:BatteryPlugin|电池|
-|cpu|async_adbc.plugins.cpu:CpuPlugin|CPU|
-|forward|async_adbc.plugins.forward:ForwardPlugin|端口转发|
-|fps|async_adbc.plugins.fps:FpsPlugin|游戏帧率|
-|gpu|async_adbc.plugins.gpu:GpuPlugin|GPU|
-|input|async_adbc.plugins.input:InputPlugin|输入|
-|logcat|async_adbc.plugins.logcat:LogcatPlugin|日志|
-|mem|async_adbc.plugins.mem:MemPlugin|内存|
-|minicap|async_adbc.plugins.minicap:MiniCapPlugin|minicap截图|
-|pm|async_adbc.plugins.pm:PmPlugin|包管理|
-|prop|async_adbc.plugins.prop:PropPlugin|属性|
-|temp|async_adbc.plugins.temp:TempPlugin|温度|
-|traffic|async_adbc.plugins.traffic:TrafficPlugin|流量|
-|utils|async_adbc.plugins.utils:UtilsPlugin|工具|
-|wm|async_adbc.plugins.wm:WmPlugin|视窗|
+| 插件 | 属性名 | 说明 |
+|------|--------|------|
+| [AMPlugin](./am.md) | `device.am` | Activity Manager，应用启动和停止 |
+| [BatteryPlugin](./battery.md) | `device.battery` | 电池信息 |
+| [CPUPlugin](./cpu.md) | `device.cpu` | CPU 信息和占用率 |
+| [ForwardPlugin](./forward.md) | `device.forward` | 端口转发 |
+| [FpsPlugin](./fps.md) | `device.fps` | 帧率统计 |
+| [GPUPlugin](./gpu.md) | `device.gpu` | GPU 信息 |
+| [InputPlugin](./input.md) | `device.input` | 输入模拟（点击、滑动、按键等） |
+| [LogcatPlugin](./logcat.md) | `device.logcat` | 日志 |
+| [MemPlugin](./mem.md) | `device.mem` | 内存信息 |
+| [MiniCapPlugin](./minicap.md) | `device.minicap` | 截图（高效） |
+| [PMPlugin](./pm.md) | `device.pm` | 包管理（安装、卸载、列出包等） |
+| [PropPlugin](./prop.md) | `device.prop` | 属性（获取设备属性） |
+| [TempPlugin](./temp.md) | `device.temp` | 温度 |
+| [TrafficPlugin](./traffic.md) | `device.traffic` | 流量统计 |
+| [UtilsPlugin](./utils.md) | `device.utils` | 工具方法 |
+| [WMPlugin](./wm.md) | `device.wm` | 窗口管理（分辨率、方向） |
 
-----
+## 基本使用
 
+所有插件都通过 `Device` 对象的属性访问：
+
+```python
+from async_adbc import ADBClient
+
+async def main():
+    adbc = ADBClient()
+    device = await adbc.device()
+    
+    # 使用 PM 插件
+    packages = await device.pm.list_packages()
+    
+    # 使用 CPU 插件
+    cpu_usage = await device.cpu.get_total_cpu_usage()
+    
+    # 使用 Input 插件
+    await device.input.tap(500, 500)
+
+asyncio.run(main())
+```

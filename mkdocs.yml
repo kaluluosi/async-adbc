@@ -1,22 +1,44 @@
 site_name: async-adbc
-
 site_description: Async ADBC - Async ADB Client
-
 repo_name: async-adbc
 repo_url: https://github.com/kaluluosi/async-adbc
 
-
 nav:
   - 首页: index.md
+  - 快速入门: quickstart.md
+  - API 参考:
+    - ADBClient: api/adbclient.md
+    - Device: api/device.md
+    - Service: api/service.md
+    - 异常: api/exceptions.md
   - 插件:
-    - plugins/index.md
+    - 插件列表: plugins/index.md
+    - AM (Activity Manager): plugins/am.md
+    - Battery: plugins/battery.md
+    - CPU: plugins/cpu.md
+    - Forward: plugins/forward.md
+    - FPS: plugins/fps.md
+    - GPU: plugins/gpu.md
+    - Input: plugins/input.md
+    - Logcat: plugins/logcat.md
+    - Mem: plugins/mem.md
+    - MiniCap: plugins/minicap.md
+    - PM (Package Manager): plugins/pm.md
+    - Prop: plugins/prop.md
+    - Temp: plugins/temp.md
+    - Traffic: plugins/traffic.md
+    - Utils: plugins/utils.md
+    - WM (Window Manager): plugins/wm.md
+  - 插件开发:
+    - 插件开发指南: plugin-dev/guide.md
   - 架构设计:
     - 架构概览: architecture/overview.md
   - 重构文档:
     - 重构文档首页: refactoring/README.md
     - v2.0 重构方案: refactoring/v2.0-plan.md
     - 问题清单: refactoring/issues.md
-theme: 
+
+theme:
     name: material
     features:
       - navigation.instant
@@ -39,10 +61,8 @@ theme:
       - content.code.select
       - content.code.annotate
 
-
 plugins:
   - search
-
 
 markdown_extensions:
   - pymdownx.highlight:
