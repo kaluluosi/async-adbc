@@ -42,11 +42,9 @@ jobs:
         with:
           python-version: "3.9"
 
-      - name: Install uv
-        run: pip install uv
-
       - name: Install dependencies
-        run: uv sync --all-extras --dev
+        run: |
+          pip install -e ".[test]"
 
       - name: Install ADB
         run: |
@@ -58,4 +56,4 @@ jobs:
           adb shell service list
 
       - name: Run integration tests
-        run: uv run pytest -m integration -v
+        run: pytest -m integration -v

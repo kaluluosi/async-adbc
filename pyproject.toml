@@ -29,8 +29,10 @@ test = [
     "pytest>=7.0.0",
     "pytest-asyncio>=0.21.0",
     "pytest-mock>=3.10.0",
+    "pytest-cov>=5.0.0",
     "pydocstyle>=6.3.0",
     "coverage>=7.3.0",
+    "ruff>=0.6.0",
 ]
 docs = [
     "mkdocs>=1.5.3",

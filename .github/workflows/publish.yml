@@ -29,26 +29,31 @@ jobs:
         with:
           python-version: "3.9"
 
-      - name: Install uv
-        run: pip install uv
+      - name: Install dependencies
+        run: |
+          pip install -e ".[test]"
+          pip install build twine
 
       - name: Set version from release tag
         if: github.event.release.tag_name
         run: |
           VERSION=${{github.event.release.tag_name}}
-          uv version ${VERSION#v}
+          sed -i "s/^version = \".*\"$/version = \"${VERSION#v}\"/" pyproject.toml
 
       - name: Set version from input
         if: github.event.inputs.version
         run: |
           VERSION=${{github.event.inputs.version}}
-          uv version ${VERSION#v}
+          sed -i "s/^version = \".*\"$/version = \"${VERSION#v}\"/" pyproject.toml
 
       - name: Build package
-        run: uv build
+        run: python -m build
 
       - name: Publish to PyPI
-        run: uv publish --username __token__ --password ${{ secrets.PYPI_API_TOKEN }}
+        run: twine upload dist/*
+        env:
+          TWINE_USERNAME: __token__
+          TWINE_PASSWORD: ${{ secrets.PYPI_API_TOKEN }}
 
   docs:
     name: Deploy Docs
