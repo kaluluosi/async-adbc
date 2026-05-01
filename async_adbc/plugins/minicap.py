@@ -1,9 +1,10 @@
 import os
 # import pkg_resources
 from importlib import resources
-from async_adbc.plugin import Plugin
+from async_adbc.plugin import Plugin, register_plugin
 
 
+@register_plugin("minicap", "minicap")
 class MinicapPlugin(Plugin):
     PUSH_TO = "/data/local/tmp"
 

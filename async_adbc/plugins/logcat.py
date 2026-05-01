@@ -1,8 +1,9 @@
 from asyncio import StreamReader
 from typing import Any, AsyncGenerator
-from async_adbc.plugin import Plugin
+from async_adbc.plugin import Plugin, register_plugin
 
 
+@register_plugin("logcat", "logcat")
 class LogcatPlugin(Plugin):
     async def reader(self, *args: str) -> StreamReader:
         """返回logcat的reader，自行通过readline读取下一行

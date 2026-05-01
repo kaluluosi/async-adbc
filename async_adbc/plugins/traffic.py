@@ -1,32 +1,13 @@
 import typing
-from async_adbc.plugin import Plugin
-from pydantic import BaseModel
+from async_adbc.plugin import Plugin, register_plugin
+from async_adbc.models import TrafficStat
+
 
 if typing.TYPE_CHECKING:
     from async_adbc.device import Device
 
 
-class TrafficStat(BaseModel):
-    """
-    流量统计，单位byte
-
-    _extended_summary_
-    """
-
-    receive: float
-    send: float
-
-    def __sub__(self, other: "TrafficStat"):
-        receive = self.receive - other.receive
-        send = self.send - other.send
-        return TrafficStat(receive=receive, send=send)
-
-    def __add__(self, other: "TrafficStat"):
-        receive = self.receive + other.receive
-        send = self.send + other.send
-        return TrafficStat(receive=receive, send=send)
-
-
+@register_plugin("traffic", "traffic")
 class TrafficPlugin(Plugin):
     def __init__(self, device: "Device") -> None:
         super().__init__(device)
@@ -82,14 +63,14 @@ class TrafficPlugin(Plugin):
         prev_rx = await self._device.shell(
             r"""cat /proc/"""
             + str(pid)
-            + """/net/dev | awk 'NR>2 {if ($1 ~ /:/) {sub(":","",$1); if ($1 != "lo") rx += $2}} END {print rx}'"""
+            + r"""/net/dev | awk 'NR>2 {if ($1 ~ /:/) {sub(":","",$1); if ($1 != "lo") rx += $2}} END {print rx}'"""
         )
 
         # 获取应用的上一次发送字节数
         prev_tx = await self._device.shell(
             r"""cat /proc/"""
             + str(pid)
-            + """/net/dev | awk 'NR>2 {if ($1 ~ /:/) {sub(":","",$1); if ($1 != "lo") tx += $10}} END {print tx}'"""
+            + r"""/net/dev | awk 'NR>2 {if ($1 ~ /:/) {sub(":","",$1); if ($1 != "lo") tx += $10}} END {print tx}'"""
         )
 
         # 创建TrafficStat对象，包含接收和发送的字节数

@@ -1,7 +1,8 @@
-from async_adbc.plugin import Plugin
+from async_adbc.plugin import Plugin, register_plugin
 from typing import Optional
 
 
+@register_plugin("am", "am")
 class ActivityManagerPlugin(Plugin):
     async def start_app(self, package_name: str, activity: Optional[str] = None):
         """

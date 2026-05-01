@@ -1,484 +1,401 @@
 import asyncio
 from collections import defaultdict
 import re
+from typing import Dict, List, Optional, Tuple, Union
 
-from typing import Dict, Tuple, overload
-from pydantic import BaseModel, Field
 from async_lru import alru_cache
 
-from async_adbc.plugin import Plugin
+from async_adbc.plugin import Plugin, register_plugin
+from async_adbc.models import (
+    CPUInfo,
+    CPUUsage,
+    CPUFreq,
+    CPUStat,
+    ProcessCPUStat,
+)
 
 
-CPUStatMap = Dict[int, "CPUStat"]
-CPUUsageMap = Dict[int, "CPUUsage"]
+CPUStatMap = Dict[int, CPUStat]
+CPUUsageMap = Dict[int, CPUUsage]
 
 
-class CPUInfo(BaseModel):
-    platform: str
-    name: str
-    abi: str
-    core: int
-    freq: Tuple[int, int]
+@register_plugin("cpu", "cpu")
+class CPUPlugin(Plugin):
+    async def _try_shell_commands(self, commands: List[str]) -> Optional[str]:
+        """尝试多个命令，返回第一个成功的结果
 
-
-class CPUUsage(BaseModel):
-    usage: float = Field(default=0.0)
-    normalized: float = Field(default=0.0)
-
-
-class CPUFreq(BaseModel):
-    min: int
-    cur: int
-    max: int
-
-
-class CPUStat(BaseModel):
-    user: float = 0
-    nice: float = 0
-    system: float = 0
-    idle: float = 0
-    iowait: float = 0
-    irq: float = 0
-    softirq: float = 0
-    stealstolen: float = 0
-    guest: float = 0
-    guest_nice: float = 0
-
-    @property
-    def total(self):
-        return (
-            self.user
-            + self.nice
-            + self.system
-            + self.idle
-            + self.iowait
-            + self.irq
-            + self.softirq
-            + self.stealstolen
-        )
-    
-    @property
-    def total_idle(self):
-        return self.idle+self.iowait
-
-    @property
-    def usage(self) -> float:
-        """
-        获取占用率，单位%
+        Args:
+            commands: 命令列表
 
         Returns:
-            float: 占用率
+            str | None: 成功的结果，失败返回 None
         """
-        return 100 * (self.total-self.total_idle) / self.total
+        for cmd in commands:
+            try:
+                result = await self._device.shell(cmd)
+                if "No such file" not in result and result.strip():
+                    return result
+            except Exception:
+                continue
+        return None
 
-    def __add__(self, other: "CPUStat"):
-        summary = CPUStat()
-
-        summary.user = self.user + other.user
-        summary.nice = self.nice + other.nice
-        summary.system = self.system + other.system
-        summary.idle = self.idle + other.idle
-        summary.iowait = self.iowait + other.iowait
-        summary.irq = self.irq + other.irq
-        summary.softirq = self.softirq + other.softirq
-        summary.stealstolen = self.stealstolen + other.stealstolen
-        summary.guest = self.guest + other.guest
-        summary.guest_nice = self.guest_nice + other.guest_nice
-
-        return summary
-
-    def __sub__(self, other: "CPUStat"):
-        result = CPUStat()
-
-        result.user = self.user - other.user
-        result.nice = self.nice - other.nice
-        result.system = self.system - other.system
-        result.idle = self.idle - other.idle
-        result.iowait = self.iowait - other.iowait
-        result.irq = self.irq - other.irq
-        result.softirq = self.softirq - other.softirq
-        result.stealstolen = self.stealstolen - other.stealstolen
-        result.guest = self.guest - other.guest
-        result.guest_nice = self.guest_nice - other.guest_nice
-
-        return result
-
-    def __str__(self):
-        attrs = vars(self)
-        return ", ".join("%s: %s" % item for item in attrs.items())
-
-
-class ProcessCPUStat(BaseModel):
-    name: str = ""
-    utime: int = 0
-    stime: int = 0
-    cutime: int = 0
-    cstime: int = 0
-
-    def __add__(self, other: "ProcessCPUStat"):
-        summary = ProcessCPUStat(name=self.name)
-        summary.utime = self.utime + other.utime
-        summary.stime = self.stime + other.stime
-        summary.cutime = self.cutime + other.cutime
-        summary.cstime = self.cstime + other.cstime
-        return summary
-
-    def __sub__(self, other: "ProcessCPUStat"):
-        result = ProcessCPUStat(name=self.name)
-        result.utime = self.utime - other.utime
-        result.stime = self.stime - other.stime
-        result.cutime = self.cutime - other.cutime
-        result.cstime = self.cstime - other.cstime
-        return result
-
-    def __str__(self):
-        attrs = vars(self)
-        return ", ".join("%s: %s" % item for item in attrs.items())
-
-    @property
-    def total(self) -> float:
-        return self.utime + self.stime
-
-class CPUPlugin(Plugin):
-
-    @property
     @alru_cache
-    async def count(self):
-        """
-        获取cpu核心数
+    async def get_count(self, check: bool = False) -> int:
+        """获取 CPU 核心数
 
-        因为核心数是一定的，为了避免每次都重复请求做了缓存
+        Args:
+            check: 是否抛异常
 
         Returns:
             int: 核心数
         """
-        result = await self._device.shell("ls /sys/devices/system/cpu")
-        match = re.findall(r"cpu[0-9+]", result)
-        _cpu_count = len(match)
-        return _cpu_count
+        result = await self._try_shell_commands(["ls /sys/devices/system/cpu"])
+        if result:
+            match = re.findall(r"cpu[0-9]+", result)
+            if match:
+                return len(match)
 
-    @property
+        proc_stat_result = await self._try_shell_commands(["cat /proc/stat"])
+        if proc_stat_result:
+            matches = re.findall(r"cpu\d+\s+", proc_stat_result)
+            if matches:
+                return len(matches)
+
+        return 1
+
     @alru_cache
-    async def freqs(self):
-        """
-        获取所有cpu的 最小最大和当前频率
+    async def get_freqs(self, check: bool = False) -> List[CPUFreq]:
+        """获取所有 CPU 的最小/当前/最大频率
 
-        单位是Hz
+        单位是 Hz
+
+        Args:
+            check: 是否抛异常
 
         Returns:
-            dict[int,CPUFreq]: key是CPU编号，value是CPUFreq
+            list[CPUFreq]: CPU 频率列表
         """
-        count = await self.count
+        count = await self.get_count(check=check)
         try:
             coroutines = []
             for index in range(count):
-                # TODO: 模拟器可能没有这个路径，有没有兼容性更强的方案来获取CPU频率
                 cmd_root = f"cat /sys/devices/system/cpu/cpu{index}/cpufreq"
-                min = self._device.shell(f"{cmd_root}/cpuinfo_min_freq")
-                cur = self._device.shell(f"{cmd_root}/scaling_cur_freq")
-                max = self._device.shell(f"{cmd_root}/cpuinfo_max_freq")
-
-                coroutine = asyncio.gather(min, cur, max)
-                coroutines.append(coroutine)
+                min_freq = self._try_shell_commands([f"{cmd_root}/cpuinfo_min_freq"])
+                cur_freq = self._try_shell_commands([f"{cmd_root}/scaling_cur_freq"])
+                max_freq = self._try_shell_commands([f"{cmd_root}/cpuinfo_max_freq"])
+                coroutines.append(asyncio.gather(min_freq, cur_freq, max_freq))
 
             freq_list = await asyncio.gather(*coroutines)
-            _freqs = [
-                CPUFreq(min=int(min), cur=int(cur), max=int(max))
-                for (min, cur, max) in freq_list
+            return [
+                CPUFreq(
+                    min=int(min_f) if min_f else 1,
+                    cur=int(cur_f) if cur_f else 1,
+                    max=int(max_f) if max_f else 1,
+                )
+                for min_f, cur_f, max_f in freq_list
             ]
         except Exception:
-            _freqs = [CPUFreq(min=1, cur=1, max=1) for _ in range(count)]   
+            if check:
+                raise
+            return [CPUFreq(min=1, cur=1, max=1) for _ in range(count)]
 
-        return _freqs
-
-    @property
     @alru_cache
-    async def normalize_factor(self) -> float:
-        """
-        cpu占用标准化因子，用这个因子去乘以cpu占用率就可以得到设备无关的标准化占用率
+    async def get_normalize_factor(self, check: bool = False) -> float:
+        """CPU 占用标准化因子
 
-        # 标准化因子，标准化CPU占用
-        # 参考：https://blog.gamebench.net/measuring-cpu-usage-in-mobile-devices
+        使用这个因子乘以 CPU 占用率可以得到设备无关的标准化占用率
 
-        Returns:
-            float: 因子
-        """
-        cpu_freqs = await self.freqs
-
-        # 合计所有CPU最大频率
-        total_max_freq = sum([v.max for v in cpu_freqs])
-
-        # 找出所有在在线的CPU
-        online_cmd = "cat /sys/devices/system/cpu/online"
-        online = await self._device.shell(online_cmd)
-        phases = [
-            list(map(lambda v: int(v), sub))
-            for sub in [p.split("-") for p in online.split(",")]
-        ]
-
-        # 合计所有在线CPU的当前频率
-        cur_freq_sum = 0
-        for p in phases:
-            for i in range(p[0], p[1] + 1):
-                cur_freq_sum += cpu_freqs[i].cur
-
-        _normalize_factor = cur_freq_sum / total_max_freq
-        return _normalize_factor
-
-    @property
-    async def cpu_stats(self) -> CPUStatMap:
-        """
-        通过解析/proc/stat获取每个核心的统计数据
+        Args:
+            check: 是否抛异常
 
         Returns:
-            CPUStatMap: key是核心号，value是CPUStat
+            float: 标准化因子
+        """
+        try:
+            cpu_freqs = await self.get_freqs(check=check)
+            total_max_freq = sum([f.max for f in cpu_freqs])
+
+            online_cmd = "cat /sys/devices/system/cpu/online"
+            online = await self._device.shell(online_cmd)
+            phases = [
+                list(map(lambda v: int(v), sub))
+                for sub in [p.split("-") for p in online.split(",")]
+            ]
+
+            cur_freq_sum = 0
+            for p in phases:
+                for i in range(p[0], p[1] + 1):
+                    if i < len(cpu_freqs):
+                        cur_freq_sum += cpu_freqs[i].cur
+
+            return cur_freq_sum / total_max_freq if total_max_freq > 0 else 1.0
+        except Exception:
+            if check:
+                raise
+            return 1.0
+
+    async def get_cpu_stats(self, check: bool = False) -> CPUStatMap:
+        """通过解析 /proc/stat 获取每个核心的统计数据
+
+        Args:
+            check: 是否抛异常
+
+        Returns:
+            CPUStatMap: 核心编号到统计数据的映射
         """
         pattern = re.compile(
-            r"cpu(\d)\s+([\d]+)\s([\d]+)\s([\d]+)\s([\d]+)\s([\d]+)\s([\d]+)\s([\d]+)\s([\d]+)\s([\d]+)\s([\d]+)\s"
+            r"cpu(\d)\s+([\d]+)\s+([\d]+)\s+([\d]+)\s+([\d]+)\s+([\d]+)\s+([\d]+)\s+([\d]+)\s+([\d]+)\s+([\d]+)\s+([\d]+)"
         )
-        cpu_state_info = await self._device.shell("cat /proc/stat")
-        matches = pattern.findall(cpu_state_info)
+        cpu_state_info = await self._try_shell_commands(["cat /proc/stat"])
 
-        values = [list(map(lambda x: int(x), group[1:])) for group in matches]
-        all_cpu_state = {
-            index: CPUStat(
-                user=value[0],
-                nice=value[1],
-                system=value[2],
-                idle=value[3],
-                iowait=value[4],
-                irq=value[5],
-                softirq=value[6],
-                stealstolen=value[7],
-                guest=value[8],
-                guest_nice=value[9],
-            )
-            for index, value in enumerate(values)
-        }
-        return all_cpu_state
+        if cpu_state_info:
+            matches = pattern.findall(cpu_state_info)
+            values = [list(map(lambda x: int(x), group[1:])) for group in matches]
+            return {
+                index: CPUStat(
+                    user=value[0],
+                    nice=value[1],
+                    system=value[2],
+                    idle=value[3],
+                    iowait=value[4],
+                    irq=value[5],
+                    softirq=value[6],
+                    stealstolen=value[7],
+                    guest=value[8],
+                    guest_nice=value[9],
+                )
+                for index, value in enumerate(values)
+            }
 
-    @property
-    async def cpu_usages(self) -> CPUUsageMap:
-        """
-        获取每个核心cpu使用率
+        if check:
+            raise RuntimeError("无法获取 CPU 统计数据")
+        return {}
 
-        获取的是两次采样间隔的cpu使用率，第一获取到的永远是0，你需要再调用一次才能获取到使用率。
+    async def get_cpu_usages(self, check: bool = False) -> CPUUsageMap:
+        """获取每个核心 CPU 占用率
 
-        Returns:
-            CPUUsageMap: _description_
-        """
-        normalize_factor = await self.normalize_factor
-        cpu_count = await self.count
-        cpu_usage = {i: CPUUsage() for i in range(cpu_count)}
+        获取的是两次采样间隔的 CPU 占用率，第一次获取到的永远是 0，需要再调用一次才能获取到占用率
 
-        last_cpu_stats = await self.cpu_stats
-
-        await asyncio.sleep(0.1)
-        
-        cpu_stats = await self.cpu_stats
-
-        for index, stat in cpu_stats.items():
-            last_cpu_stat = last_cpu_stats[index]
-            cpu_diff: CPUStat = stat - last_cpu_stat
-            usage = round(cpu_diff.usage, 2)
-            normalized = usage * normalize_factor
-            cpu_usage[index] = CPUUsage(usage=usage, normalized=normalized)
-        return cpu_usage
-
-    @property
-    async def total_cpu_stat(self) -> CPUStat:
-        """
-        总cpu状态
+        Args:
+            check: 是否抛异常
 
         Returns:
-            Optional[CPUStat]: CPU状态
+            CPUUsageMap: 核心编号到占用率的映射
+        """
+        try:
+            normalize_factor = await self.get_normalize_factor(check=check)
+            cpu_count = await self.get_count(check=check)
+            cpu_usage = {i: CPUUsage() for i in range(cpu_count)}
+
+            last_cpu_stats = await self.get_cpu_stats(check=check)
+            await asyncio.sleep(0.1)
+            cpu_stats = await self.get_cpu_stats(check=check)
+
+            for index, stat in cpu_stats.items():
+                if index in last_cpu_stats:
+                    last_cpu_stat = last_cpu_stats[index]
+                    cpu_diff: CPUStat = stat - last_cpu_stat
+                    usage = round(cpu_diff.usage, 2)
+                    normalized = usage * normalize_factor
+                    cpu_usage[index] = CPUUsage(usage=usage, normalized=normalized)
+            return cpu_usage
+        except Exception:
+            if check:
+                raise
+            return {}
+
+    async def get_total_cpu_stat(self, check: bool = False) -> CPUStat:
+        """总 CPU 统计数据
+
+        Args:
+            check: 是否抛异常
+
+        Returns:
+            CPUStat: CPU 统计数据
         """
         pattern = re.compile(
             r"cpu\s+([\d]+)\s([\d]+)\s([\d]+)\s([\d]+)\s([\d]+)\s([\d]+)\s([\d]+)\s([\d]+)\s([\d]+)\s([\d]+)\s"
         )
 
-        result = await self._device.shell("cat /proc/stat")
-        match = pattern.search(result)
+        result = await self._try_shell_commands(["cat /proc/stat"])
+        if result:
+            match = pattern.search(result)
+            if match and len(match.groups()) == 10:
+                value = list(map(lambda x: int(x), match.groups()))
+                return CPUStat(
+                    user=value[0],
+                    nice=value[1],
+                    system=value[2],
+                    idle=value[3],
+                    iowait=value[4],
+                    irq=value[5],
+                    softirq=value[6],
+                    stealstolen=value[7],
+                    guest=value[8],
+                    guest_nice=value[9],
+                )
 
-        cpu_stat = CPUStat()
-        if match is None or len(match.groups()) != 10:
-            raise RuntimeError("无法从 /proc/stat 中获取cpu统计")
-        else:
-            value = list(map(lambda x: int(x), match.groups()))
-            cpu_stat = CPUStat(
-                user=value[0],
-                nice=value[1],
-                system=value[2],
-                idle=value[3],
-                iowait=value[4],
-                irq=value[5],
-                softirq=value[6],
-                stealstolen=value[7],
-                guest=value[8],
-                guest_nice=value[9],
-            )
+        if check:
+            raise RuntimeError("无法获取 CPU 统计数据")
+        return CPUStat()
 
-        return cpu_stat
+    async def get_total_cpu_usage(self, check: bool = False) -> CPUUsage:
+        """获取总 CPU 占用率
 
-    @property
-    async def total_cpu_usage(self) -> CPUUsage:
-        """
-        获取总cpu占用率
-         获取的是两次采样间隔的cpu使用率，第一获取到的永远是0，你需要再调用一次才能获取到使用率。
-
-        Returns:
-            CPUUsage: CPU使用率
-        """
-
-        last_total_cpu_stat = await self.total_cpu_stat
-
-        # 用sleep来间隔采样
-        await asyncio.sleep(0.1)
-
-        total_cpu_stat = await self.total_cpu_stat
-        diff = total_cpu_stat - last_total_cpu_stat
-
-        normalize_factor = await self.normalize_factor
-        normalized = diff.usage * normalize_factor
-
-        return CPUUsage(usage=diff.usage, normalized=normalized)
-
-    @overload
-    async def get_pid_cpu_stat(self, pid_or_pkg_name: str) -> ProcessCPUStat:
-        """
-        通过pid或包名获取进程cpu状态
+        获取的是两次采样间隔的 CPU 占用率，第一次获取到的永远是 0，需要再调用一次才能获取到占用率
 
         Args:
-            pid_or_pkg_name (str): 包名
+            check: 是否抛异常
 
         Returns:
-            ProcessCPUStat: 进程cpu状态
+            CPUUsage: CPU 占用率
         """
-        ...
+        try:
+            last_total_cpu_stat = await self.get_total_cpu_stat(check=check)
+            await asyncio.sleep(0.1)
+            total_cpu_stat = await self.get_total_cpu_stat(check=check)
+            diff = total_cpu_stat - last_total_cpu_stat
 
-    @overload
-    async def get_pid_cpu_stat(self, pid_or_pkg_name: int) -> ProcessCPUStat:
-        """
-        通过pid或包名获取进程cpu状态
+            normalize_factor = await self.get_normalize_factor(check=check)
+            normalized = diff.usage * normalize_factor
+
+            return CPUUsage(usage=diff.usage, normalized=normalized)
+        except Exception:
+            if check:
+                raise
+            return CPUUsage()
+
+    async def get_pid_cpu_stat(
+        self, pid_or_pkg_name: Union[int, str], check: bool = False
+    ) -> ProcessCPUStat:
+        """通过 PID 或包名获取进程 CPU 统计数据
 
         Args:
-            pid_or_pkg_name (int): 进程pid
+            pid_or_pkg_name: 进程 PID 或包名
+            check: 是否抛异常
 
         Returns:
-            ProcessCPUStat: 进程cpu状态
+            ProcessCPUStat: 进程 CPU 统计数据
         """
-        ...
-
-    async def get_pid_cpu_stat(self, pid_or_pkg_name) -> ProcessCPUStat:
         pid = pid_or_pkg_name
-
         if isinstance(pid_or_pkg_name, str):
             try:
                 pid = await self._device.get_pid_by_pkgname(pid_or_pkg_name)
             except Exception:
+                if check:
+                    raise
                 return ProcessCPUStat()
 
-        result = await self._device.shell(f"cat /proc/{pid}/stat")
-
-        if "No such file or directory" in result:
-            return ProcessCPUStat()
-        else:
+        result = await self._try_shell_commands([f"cat /proc/{pid}/stat"])
+        if result and "No such file or directory" not in result:
             items = result.split()
-            return ProcessCPUStat(
-                name=items[1],
-                utime=int(items[13]),
-                stime=int(items[14]),
-                cutime=int(items[15]),
-                cstime=int(items[16]),
-            )
+            if len(items) >= 17:
+                name = items[1]
+                # 去掉括号
+                if name.startswith("(") and name.endswith(")"):
+                    name = name[1:-1]
+                return ProcessCPUStat(
+                    name=name,
+                    utime=int(items[13]),
+                    stime=int(items[14]),
+                    cutime=int(items[15]),
+                    cstime=int(items[16]),
+                )
 
-    @overload
-    async def get_pid_cpu_usage(self, pid_or_pkg_name: int) -> CPUUsage:
-        """
-        通过pid或包名获取CPU使用率
+        if check:
+            raise RuntimeError(f"无法获取进程 {pid} 的 CPU 统计数据")
+        return ProcessCPUStat()
 
-        Args:
-            pid_or_pkg_name (int): pid
-
-        Returns:
-            CPUUsage: CPU使用率
-        """
-        ...
-
-    @overload
-    async def get_pid_cpu_usage(self, pid_or_pkg_name: str) -> CPUUsage:
-        """
-        通过pid或包名获取CPU使用率
+    async def get_pid_cpu_usage(
+        self, pid_or_pkg_name: Union[int, str], check: bool = False
+    ) -> CPUUsage:
+        """通过 PID 或包名获取进程 CPU 占用率
 
         Args:
-            pid_or_pkg_name (str): 包名
+            pid_or_pkg_name: 进程 PID 或包名
+            check: 是否抛异常
 
         Returns:
-            CPUUsage: CPU使用率
+            CPUUsage: CPU 占用率
         """
-        ...
-
-    async def get_pid_cpu_usage(self, pid_or_pkg_name) -> CPUUsage:
         pid = pid_or_pkg_name
         if isinstance(pid, str):
             try:
                 pid = await self._device.get_pid_by_pkgname(pid_or_pkg_name)
             except Exception:
+                if check:
+                    raise
                 return CPUUsage()
 
-        normalize_factor = await self.normalize_factor
+        try:
+            normalize_factor = await self.get_normalize_factor(check=check)
 
-        last_pid_cpu_stat, last_total_cpu_stat = await asyncio.gather(
-            self.get_pid_cpu_stat(pid), self.total_cpu_stat
-        )
-        
-        await asyncio.sleep(0.1)
+            last_pid_cpu_stat, last_total_cpu_stat = await asyncio.gather(
+                self.get_pid_cpu_stat(pid, check=check),
+                self.get_total_cpu_stat(check=check),
+            )
+            await asyncio.sleep(0.1)
+            pid_stat, total_cpu_stat = await asyncio.gather(
+                self.get_pid_cpu_stat(pid, check=check),
+                self.get_total_cpu_stat(check=check),
+            )
 
-        pid_stat, total_cpu_stat = await asyncio.gather(
-            self.get_pid_cpu_stat(pid), self.total_cpu_stat
-        )
-        pid_diff = pid_stat - last_pid_cpu_stat
-        cpu_diff = total_cpu_stat - last_total_cpu_stat
+            pid_diff = pid_stat - last_pid_cpu_stat
+            cpu_diff = total_cpu_stat - last_total_cpu_stat
 
-        app_cpu_usage = pid_diff.total / cpu_diff.total * 100
+            if cpu_diff.total > 0:
+                app_cpu_usage = pid_diff.total / cpu_diff.total * 100
+                normalized = app_cpu_usage * normalize_factor
+                return CPUUsage(usage=app_cpu_usage, normalized=normalized)
 
-        normalized = app_cpu_usage * normalize_factor
-        return CPUUsage(usage=app_cpu_usage, normalized=normalized)
+            return CPUUsage()
+        except Exception:
+            if check:
+                raise
+            return CPUUsage()
 
-    @property
     @alru_cache
-    async def cpu_name(self) -> str:
-        """
-        获取CPU名
+    async def get_cpu_name(self, check: bool = False) -> str:
+        """获取 CPU 名称
+
+        Args:
+            check: 是否抛异常
 
         Returns:
-            str: 名字
+            str: CPU 名称
         """
         try:
-            text: str = await self._device.shell("cat /proc/cpuinfo|grep Hardware")
-            name = text.split(":")[1].lstrip()
+            text = await self._try_shell_commands(["cat /proc/cpuinfo|grep Hardware"])
+            if text:
+                return text.split(":")[1].lstrip()
+            return "Unknown"
         except Exception:
-            return "Unknow"
-        return name
+            if check:
+                raise
+            return "Unknown"
 
-    @property
     @alru_cache
-    async def info(self) -> CPUInfo:
-        props = await self._device.properties
+    async def get_info(self, check: bool = False) -> CPUInfo:
+        """获取 CPU 信息
 
-        platform = props.get("ro.board.platform", "Unknow")
-        cpu_name = await self.cpu_name
-        abi = props.get("ro.product.cpu.abi", "Unknow")
-        core = await self.count
-        freqs = await self.freqs
-        freq = freqs[0]
+        Args:
+            check: 是否抛异常
 
-        cpu_info = CPUInfo(
+        Returns:
+            CPUInfo: CPU 信息
+        """
+        props = await self._device.get_properties()
+        platform = props.get("ro.board.platform", "Unknown")
+        cpu_name = await self.get_cpu_name(check=check)
+        abi = props.get("ro.product.cpu.abi", "Unknown")
+        core = await self.get_count(check=check)
+        freqs = await self.get_freqs(check=check)
+        freq = freqs[0] if freqs else CPUFreq(min=1, cur=1, max=1)
+
+        return CPUInfo(
             platform=platform,
             name=cpu_name,
             abi=abi,
             core=core,
             freq=(freq.min, freq.max),
         )
-        return cpu_info
-

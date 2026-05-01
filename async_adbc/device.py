@@ -3,27 +3,10 @@ import re
 import typing
 
 from async_lru import alru_cache
-from async_adbc.protocol import Connection
+from async_adbc.protocol.connection import Connection
 from async_adbc.service.local import LocalService
 
-from async_adbc.plugins import (
-    PMPlugin,
-    PropPlugin,
-    CPUPlugin,
-    GPUPlugin,
-    BatteryPlugin,
-    FpsPlugin,
-    MemPlugin,
-    TempPlugin,
-    UtilsPlugin,
-    TrafficPlugin,
-    ForwardPlugin,
-    ActivityManagerPlugin,
-    LogcatPlugin,
-    # MinicapPlugin,
-    WMPlugin,
-    InputPlugin,
-)
+from async_adbc.plugins._registry import get_registry
 
 
 if typing.TYPE_CHECKING:
@@ -31,52 +14,62 @@ if typing.TYPE_CHECKING:
 
 
 class Status(enum.Enum):
+    """设备状态枚举"""
+
     DEVICE = "device"
+    """设备已连接"""
     OFFLINE = "offline"
+    """设备离线"""
     UNKNOWN = "unknown"
+    """未知状态"""
     UNAUTHORIZED = "unauthorized"
+    """设备未授权"""
     AUTHORIZING = "authorizing"
+    """设备正在授权"""
 
 
 class Device(LocalService):
+    """Android 设备类，封装了与设备交互的所有功能"""
+
     def __init__(self, adbc: "ADBClient", serialno: str) -> None:
+        """初始化 Device
+
+        Args:
+            adbc: ADBClient 实例
+            serialno: 设备序列号
+        """
+        super().__init__()
         self.adbc = adbc
         self.serialno = serialno
 
-        self.pm = PMPlugin(self)
-        self.prop = PropPlugin(self)
-        self.cpu = CPUPlugin(self)
-        self.gpu = GPUPlugin(self)
-        self.mem = MemPlugin(self)
-        self.fps = FpsPlugin(self)
-        self.battery = BatteryPlugin(self)
-        self.temp = TempPlugin(self)
-        self.utils = UtilsPlugin(self)
-        self.traffic = TrafficPlugin(self)
-        self.am = ActivityManagerPlugin(self)
-        self.forward = ForwardPlugin(self)
-        self.logcat = LogcatPlugin(self)
-        # self.minicap = MinicapPlugin(self)
-        self.wm = WMPlugin(self)
-        self.input = InputPlugin(self)
+        self._load_plugins()
+
+    def _load_plugins(self):
+        """加载所有已注册的插件"""
+        registry = get_registry()
+        for metadata in registry.get_all():
+            plugin = metadata.plugin_class(self)
+            setattr(self, metadata.attr_name, plugin)
 
     async def create_connection(self) -> Connection:
+        """创建并切换到传输模式的连接
+
+        Returns:
+            Connection: 已切换到传输模式的连接
+        """
         conn = await self.adbc.create_connection()
         await conn.transport_mode(self.serialno)
         return conn
 
-    @property
     @alru_cache
-    async def properties(self) -> typing.Dict[str, str]:
-        """获取设备props
-
-        一些插件要用到所以挪到device里
+    async def get_properties(self) -> typing.Dict[str, str]:
+        """获取设备属性
 
         Returns:
-            dict[str, str]: _description_
+            dict[str, str]: 设备属性字典
         """
         res = await self.shell("getprop")
-        result_pattern = "^\[([\s\S]*?)\]: \[([\s\S]*?)\]\r?$"  # type: ignore
+        result_pattern = r"^\[([\s\S]*?)\]: \[([\s\S]*?)\]\r?$"
         lines = res.splitlines()
         properties = {}
         for line in lines:
@@ -87,6 +80,17 @@ class Device(LocalService):
         return properties
 
     async def get_pid_by_pkgname(self, package_name: str) -> int:
+        """通过包名获取进程 PID
+
+        Args:
+            package_name: 应用包名
+
+        Returns:
+            int: 进程 PID
+
+        Raises:
+            ValueError: 应用没有运行时抛出
+        """
         result = await self.shell(f"pidof {package_name}")
         if result:
             return int(result)
@@ -94,13 +98,17 @@ class Device(LocalService):
             raise ValueError(f"{package_name} 应用没有运行")
 
     async def file_exists(self, file_path: str) -> bool:
-        """判断设备存在这个文件路径
+        """判断设备上是否存在这个文件路径
 
         Args:
-            file_path (str): 文件路径
+            file_path: 文件路径
 
         Returns:
-            bool: true 存在， false不存在
+            bool: True 存在，False 不存在
         """
         res = await self.shell("ls", file_path)
         return "No such file or directory" not in res
+
+    def close(self):
+        """关闭设备连接，释放资源"""
+        super().close()

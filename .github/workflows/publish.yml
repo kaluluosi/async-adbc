@@ -1,59 +1,74 @@
+name: Publish PyPI
+run-name: ${{github.actor}} is publishing ${{ inputs.version || github.ref_name || github.event.release.tag_name }} to PyPI
 
-name: Upload Python Package
-run-name: ${{github.actor}} is publishing to pypi
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
 
 on:
-    release:
-        types: [published]
-
-    workflow_dispatch:
-      inputs:
-        version:
-          description: 'Release version'
-          required: true
-          type: string
+  push:
+    tags:
+      - "[0-9]+.[0-9]+.[0-9]+*"  # 匹配 1.0.0, 1.0.0a1, 1.0.0rc1 等
+  release:
+    types: [published]
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Release version (e.g., 2.0.0, 2.0.0a1)'
+        required: true
+        type: string
 
 jobs:
-    # test:
-    #     uses: ./.github/workflows/test.yml
+  ci:
+    uses: ./.github/workflows/ci.yml
 
-    deploy:
-        runs-on: ubuntu-latest
-        # needs: [test]
-        steps:
-            - name: checkout
-              uses: actions/checkout@v4
-            
-            - name: Install Poetry-安装poetry
-              run: pipx install poetry
-            
-            - name: Set up Python
-              uses: actions/setup-python@v4
-              with:
-                  python-version: '3.9'
-                  cache: 'poetry'
-            
-            - name: 将Tag版本号填写到toml配置中
-              if: github.event.release.tag_name
-              run: poetry version ${{github.event.release.tag_name}}
+  deploy:
+    name: Publish to PyPI
+    runs-on: ubuntu-latest
+    needs: [ci]
 
-            - name: 将version参数更新到toml配置中
-              if: github.event.inputs.version
-              run: poetry version ${{github.event.inputs.version}}
-            
-            - name: Install dependencies
-              run: |
-                  poetry install
-            - name: Build package
-              run:  poetry build
-            - name: Publish package
-              run: |
-                poetry publish --username __token__ --password ${{ secrets.PYPI_API_TOKEN }}         
-          
-    docs:
-        needs: [deploy]
-        uses: ./.github/workflows/docs.yml
-        permissions:
-          contents: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup uv
+        uses: astral-sh/setup-uv@v4
         with:
-          deploy: true
+          version: "latest"
+
+      - name: Install dependencies
+        run: uv sync --all-extras --dev
+
+      - name: Determine version
+        id: determine-version
+        run: |
+          if [ "${{ github.event_name }}" = "release" ]; then
+            VERSION="${{ github.event.release.tag_name }}"
+          elif [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            VERSION="${{ github.event.inputs.version }}"
+          else
+            VERSION="${{ github.ref_name }}"
+          fi
+          # 去掉可能存在的 v 前缀，兼容两种情况
+          VERSION="${VERSION#v}"
+          echo "VERSION=$VERSION" >> "$GITHUB_OUTPUT"
+
+      - name: Set version with uv
+        run: |
+          VERSION="${{ steps.determine-version.outputs.VERSION }}"
+          uv version "$VERSION"
+          cat pyproject.toml  # 验证修改
+
+      - name: Build package with uv
+        run: uv build
+
+      - name: Publish to PyPI with uv
+        run: uv publish --username __token__ --password ${{ secrets.PYPI_API_TOKEN }}
+
+  docs:
+    name: Deploy Docs
+    needs: [ci]
+    uses: ./.github/workflows/docs.yml
+    permissions:
+      contents: write
+    with:
+      deploy: true
