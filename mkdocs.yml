@@ -8,8 +8,14 @@ repo_url: https://github.com/kaluluosi/async-adbc
 
 nav:
   - 首页: index.md
-  - 插件: 
+  - 插件:
     - plugins/index.md
+  - 架构设计:
+    - 架构概览: architecture/overview.md
+  - 重构文档:
+    - 重构文档首页: refactoring/README.md
+    - v2.0 重构方案: refactoring/v2.0-plan.md
+    - 问题清单: refactoring/issues.md
 theme: 
     name: material
     features:
