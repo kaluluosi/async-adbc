@@ -17,10 +17,8 @@ class TestMemPlugin:
     async def test_get_info(self, mem_plugin, mock_device, sample_meminfo_output):
         """测试获取内存信息"""
         async def mock_shell(cmd):
-            if "MemTotal" in cmd:
-                return "MemTotal:        5872084 kB"
-            elif "SwapTotal" in cmd:
-                return "SwapTotal:       1234567 kB"
+            if "/proc/meminfo" in cmd:
+                return sample_meminfo_output
             return ""
         mock_device.shell = mock_shell
         info = await mem_plugin.get_info()

@@ -28,9 +28,25 @@ class Response:
     def close(self):
         self._writer.close()
 
+    async def read(self, n: int = -1) -> bytes:
+        """读取数据
+
+        Args:
+            n: 读取字节数，-1 表示读取所有
+
+        Returns:
+            bytes: 读取的数据
+        """
+        return await self.reader.read(n)
+
     async def text(self) -> str:
-        recv = await self.byte()
-        return recv.decode()
+        try:
+            recv = await self.byte()
+            return recv.decode()
+        except Exception:
+            # 降级：直接读取所有数据
+            data = await self.read()
+            return data.decode()
 
     async def byte(self) -> bytes:
         from .consts import HEADER_LENGTH

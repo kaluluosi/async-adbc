@@ -3,38 +3,35 @@ from async_adbc.plugin import Plugin, register_plugin
 
 
 @register_plugin("input", "input")
-
-"""
-Usage: input [<source>] [-d DISPLAY_ID] <command> [<arg>...]
-
-The sources are:
-      dpad
-      keyboard
-      mouse
-      touchpad
-      gamepad
-      touchnavigation
-      joystick
-      touchscreen
-      stylus
-      trackball
-
--d: specify the display ID.
-      (Default: -1 for key event, 0 for motion event if not specified.)
-The commands and default sources are:
-      text <string> (Default: touchscreen)
-      keyevent [--longpress] <key code number or name> ... (Default: keyboard)
-      tap <x> <y> (Default: touchscreen)
-      swipe <x1> <y1> <x2> <y2> [duration(ms)] (Default: touchscreen)
-      draganddrop <x1> <y1> <x2> <y2> [duration(ms)] (Default: touchscreen)
-      press (Default: trackball)
-      roll <dx> <dy> (Default: trackball)
-      event <DOWN|UP|MOVE> <x> <y> (Default: touchscreen)
-
-"""
-
-
 class InputPlugin(Plugin):
+    """
+    Usage: input [<source>] [-d DISPLAY_ID] <command> [<arg>...]
+
+    The sources are:
+          dpad
+          keyboard
+          mouse
+          touchpad
+          gamepad
+          touchnavigation
+          joystick
+          touchscreen
+          stylus
+          trackball
+
+    -d: specify the display ID.
+          (Default: -1 for key event, 0 for motion event if not specified.)
+    The commands and default sources are:
+          text <string> (Default: touchscreen)
+          keyevent [--longpress] <key code number or name> ... (Default: keyboard)
+          tap <x> <y> (Default: touchscreen)
+          swipe <x1> <y1> <x2> <y2> [duration(ms)] (Default: touchscreen)
+          draganddrop <x1> <y1> <x2> <y2> [duration(ms)] (Default: touchscreen)
+          press (Default: trackball)
+          roll <dx> <dy> (Default: trackball)
+          event <DOWN|UP|MOVE> <x> <y> (Default: touchscreen)
+
+    """
     # TODO: 按键模拟输入这部分还没有实现
 
     async def text(self, text: str):

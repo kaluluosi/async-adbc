@@ -144,7 +144,7 @@ class CPUPlugin(Plugin):
             CPUStatMap: 核心编号到统计数据的映射
         """
         pattern = re.compile(
-            r"cpu(\d)\s+([\d]+)\s([\d]+)\s([\d]+)\s([\d]+)\s([\d]+)\s([\d]+)\s([\d]+)\s([\d]+)\s([\d]+)\s([\d]+)\s"
+            r"cpu(\d)\s+([\d]+)\s+([\d]+)\s+([\d]+)\s+([\d]+)\s+([\d]+)\s+([\d]+)\s+([\d]+)\s+([\d]+)\s+([\d]+)\s+([\d]+)"
         )
         cpu_state_info = await self._try_shell_commands(["cat /proc/stat"])
 
@@ -290,8 +290,12 @@ class CPUPlugin(Plugin):
         if result and "No such file or directory" not in result:
             items = result.split()
             if len(items) >= 17:
+                name = items[1]
+                # 去掉括号
+                if name.startswith("(") and name.endswith(")"):
+                    name = name[1:-1]
                 return ProcessCPUStat(
-                    name=items[1],
+                    name=name,
                     utime=int(items[13]),
                     stime=int(items[14]),
                     cutime=int(items[15]),

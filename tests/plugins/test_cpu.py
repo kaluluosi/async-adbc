@@ -59,14 +59,22 @@ drwxr-xr-x  2 root root 0 2024-01-01 00:00 cpu3
     @pytest.mark.asyncio
     async def test_get_cpu_stats(self, cpu_plugin, mock_device, sample_proc_stat_output):
         """测试获取 CPU 统计数据"""
-        mock_device.shell = AsyncMock(return_value=sample_proc_stat_output)
+        async def mock_shell(cmd):
+            if "/proc/stat" in cmd:
+                return sample_proc_stat_output
+            return ""
+        mock_device.shell = mock_shell
         stats = await cpu_plugin.get_cpu_stats()
         assert len(stats) == 4
 
     @pytest.mark.asyncio
     async def test_get_total_cpu_stat(self, cpu_plugin, mock_device, sample_proc_stat_output):
         """测试获取总 CPU 统计数据"""
-        mock_device.shell = AsyncMock(return_value=sample_proc_stat_output)
+        async def mock_shell(cmd):
+            if "/proc/stat" in cmd:
+                return sample_proc_stat_output
+            return ""
+        mock_device.shell = mock_shell
         stat = await cpu_plugin.get_total_cpu_stat()
         assert stat.user == 4321
         assert stat.idle == 89012
@@ -74,7 +82,12 @@ drwxr-xr-x  2 root root 0 2024-01-01 00:00 cpu3
     @pytest.mark.asyncio
     async def test_get_cpu_name(self, cpu_plugin, mock_device, sample_cpuinfo_output):
         """测试获取 CPU 名称"""
-        mock_device.shell = AsyncMock(return_value=sample_cpuinfo_output)
+        async def mock_shell(cmd):
+            if "cpuinfo" in cmd:
+                # 模拟 grep Hardware 的结果
+                return "Hardware        : Qualcomm Technologies, Inc MSM8998\n"
+            return ""
+        mock_device.shell = mock_shell
         name = await cpu_plugin.get_cpu_name()
         assert "Qualcomm" in name
 
@@ -88,7 +101,11 @@ drwxr-xr-x  2 root root 0 2024-01-01 00:00 cpu3
     @pytest.mark.asyncio
     async def test_get_pid_cpu_stat(self, cpu_plugin, mock_device):
         """测试获取进程 CPU 统计数据"""
-        mock_device.shell = AsyncMock(return_value="1234 (test) R 5678 1234 ...")
+        async def mock_shell(cmd):
+            if "/proc/1234/stat" in cmd:
+                return "1234 (test) R 5678 1234 1 2 3 4 5 6 7 8 9 10 1000 2000 300 400"
+            return ""
+        mock_device.shell = mock_shell
         stat = await cpu_plugin.get_pid_cpu_stat(1234)
         assert stat.name == "test"
 

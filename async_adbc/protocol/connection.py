@@ -8,7 +8,7 @@ from .response import Response
 
 
 def encode_length(length: int) -> bytes:
-    return f"{length:04X}".encode("utf-8")
+    return f"{length:04x}".encode("utf-8")
 
 
 def decode_length(data: bytes) -> int:

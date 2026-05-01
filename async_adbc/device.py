@@ -38,6 +38,7 @@ class Device(LocalService):
             adbc: ADBClient 实例
             serialno: 设备序列号
         """
+        super().__init__()
         self.adbc = adbc
         self.serialno = serialno
 

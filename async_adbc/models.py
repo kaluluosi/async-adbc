@@ -1,14 +1,11 @@
-from typing import List, Tuple, TYPE_CHECKING
+from typing import List, Tuple, Union
 from pydantic import BaseModel, Field
-
-if TYPE_CHECKING:
-    from async_adbc.device import Status
 
 
 # ============ service/host.py 模型 ============
 class DeviceStatusNotification(BaseModel):
     serialno: str
-    status: "Status"
+    status: Union[str, object]
 
 
 class ForwardRule(BaseModel):
@@ -46,9 +43,9 @@ class CPUUsage(BaseModel):
 
 
 class CPUFreq(BaseModel):
-    min: int
-    cur: int
-    max: int
+    min: int = 0
+    cur: int = 0
+    max: int = 0
 
 
 class CPUStat(BaseModel):
@@ -74,6 +71,8 @@ class CPUStat(BaseModel):
             + self.irq
             + self.softirq
             + self.stealstolen
+            + self.guest
+            + self.guest_nice
         )
 
     @property
@@ -146,13 +145,13 @@ class ProcessCPUStat(BaseModel):
 
     @property
     def total(self) -> float:
-        return self.utime + self.stime
+        return self.utime + self.stime + self.cutime + self.cstime
 
 
 # ============ plugins/mem.py 模型 ============
 class MemInfo(BaseModel):
-    mem_total: int
-    swap_total: int
+    mem_total: int = 0
+    swap_total: int = 0
 
 
 class MemStat(BaseModel):
@@ -192,10 +191,10 @@ class BatteryStat(BaseModel):
 
 # ============ plugins/temp.py 模型 ============
 class TempStat(BaseModel):
-    cpu: float
-    gpu: float
-    skin: float
-    battery: float
+    cpu: float = 0.0
+    gpu: float = 0.0
+    skin: float = 0.0
+    battery: float = 0.0
 
 
 # ============ plugins/traffic.py 模型 ============
