@@ -18,6 +18,7 @@ class ScrcpyPlugin(Plugin):
 
     def __init__(self, device: "Device"):
         super().__init__(device)
+        self._server_response = None  # 保存 Response 对象，防止被 GC
         self._server_reader = None
         self._stream_reader = None
         self._stream_writer = None
@@ -76,8 +77,9 @@ class ScrcpyPlugin(Plugin):
         if max_size > 0:
             server_cmd.append(f"max_size={max_size}")
 
-        # 使用 shell_reader 启动后台服务器
-        self._server_reader = await self._device.shell_reader(" ".join(server_cmd))
+        # 直接调用 request（Device 继承自 LocalService），保存 Response 对象，防止被 GC
+        self._server_response = await self._device.request("shell", " ".join(server_cmd))
+        self._server_reader = self._server_response.reader
         self._is_running = True
 
         # 建立 socket 连接
@@ -98,10 +100,10 @@ class ScrcpyPlugin(Plugin):
             self._stream_writer.close()
             await self._stream_writer.wait_closed()
 
-        # 停止服务器进程（通过关闭 reader 来断开连接）
-        if self._server_reader:
+        # 停止服务器进程（关闭 Response）
+        if self._server_response:
             try:
-                self._server_reader.feed_eof()
+                self._server_response.close()
             except Exception:
                 pass
 
@@ -112,6 +114,7 @@ class ScrcpyPlugin(Plugin):
             except Exception:
                 pass
 
+        self._server_response = None
         self._server_reader = None
         self._stream_reader = None
         self._stream_writer = None
