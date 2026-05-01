@@ -1,6 +1,6 @@
 # async-adbc
 
-[![Test-测试](https://github.com/kaluluosi/async-adbc/actions/workflows/test.yml/badge.svg)](https://github.com/kaluluosi/async-adbc/actions/workflows/test.yml)
+[![CI](https://github.com/kaluluosi/async-adbc/actions/workflows/ci.yml/badge.svg)](https://github.com/kaluluosi/async-adbc/actions/workflows/ci.yml)
 [![PyPI version](https://badge.fury.io/py/async-adbc.svg)](https://badge.fury.io/py/async-adbc)
 [![Python versions](https://img.shields.io/pypi/pyversions/async-adbc.svg)](https://pypi.org/project/async-adbc/)
 
