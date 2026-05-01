@@ -27,13 +27,10 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Setup Python
-        uses: actions/setup-python@v5
+      - name: Setup uv
+        uses: astral-sh/setup-uv@v4
         with:
-          python-version: "3.9"
-
-      - name: Install uv
-        run: pip install uv
+          version: "latest"
 
       - name: Install dependencies
         run: uv sync --all-extras --dev
