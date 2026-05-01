@@ -32,10 +32,11 @@ jobs:
         with:
           python-version: "3.9"
 
+      - name: Install uv
+        run: pip install uv
+
       - name: Install dependencies
-        run: |
-          pip install -e ".[test]"
-          pip install build twine
+        run: uv sync --all-extras --dev
 
       - name: Determine version
         id: determine-version
@@ -51,20 +52,17 @@ jobs:
           VERSION="${VERSION#v}"
           echo "VERSION=$VERSION" >> "$GITHUB_OUTPUT"
 
-      - name: Set version in pyproject.toml
+      - name: Set version with uv
         run: |
           VERSION="${{ steps.determine-version.outputs.VERSION }}"
-          sed -i "s/^version = \".*\"$/version = \"$VERSION\"/" pyproject.toml
+          uv version "$VERSION"
           cat pyproject.toml  # 验证修改
 
-      - name: Build package
-        run: python -m build
+      - name: Build package with uv
+        run: uv build
 
-      - name: Publish to PyPI
-        run: twine upload dist/*
-        env:
-          TWINE_USERNAME: __token__
-          TWINE_PASSWORD: ${{ secrets.PYPI_API_TOKEN }}
+      - name: Publish to PyPI with uv
+        run: uv publish --username __token__ --password ${{ secrets.PYPI_API_TOKEN }}
 
   docs:
     name: Deploy Docs
