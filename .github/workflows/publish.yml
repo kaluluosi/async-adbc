@@ -1,13 +1,16 @@
 name: Publish PyPI
-run-name: ${{github.actor}} is publishing to PyPI
+run-name: ${{github.actor}} is publishing ${{ inputs.version || github.ref_name || github.event.release.tag_name }} to PyPI
 
 on:
+  push:
+    tags:
+      - "[0-9]+.[0-9]+.[0-9]+*"  # 匹配 1.0.0, 1.0.0a1, 1.0.0rc1 等
   release:
     types: [published]
   workflow_dispatch:
     inputs:
       version:
-        description: 'Release version'
+        description: 'Release version (e.g., 2.0.0, 2.0.0a1)'
         required: true
         type: string
 
@@ -34,17 +37,25 @@ jobs:
           pip install -e ".[test]"
           pip install build twine
 
-      - name: Set version from release tag
-        if: github.event.release.tag_name
+      - name: Determine version
+        id: determine-version
         run: |
-          VERSION=${{github.event.release.tag_name}}
-          sed -i "s/^version = \".*\"$/version = \"${VERSION#v}\"/" pyproject.toml
+          if [ "${{ github.event_name }}" = "release" ]; then
+            VERSION="${{ github.event.release.tag_name }}"
+          elif [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            VERSION="${{ github.event.inputs.version }}"
+          else
+            VERSION="${{ github.ref_name }}"
+          fi
+          # 去掉可能存在的 v 前缀，兼容两种情况
+          VERSION="${VERSION#v}"
+          echo "VERSION=$VERSION" >> "$GITHUB_OUTPUT"
 
-      - name: Set version from input
-        if: github.event.inputs.version
+      - name: Set version in pyproject.toml
         run: |
-          VERSION=${{github.event.inputs.version}}
-          sed -i "s/^version = \".*\"$/version = \"${VERSION#v}\"/" pyproject.toml
+          VERSION="${{ steps.determine-version.outputs.VERSION }}"
+          sed -i "s/^version = \".*\"$/version = \"$VERSION\"/" pyproject.toml
+          cat pyproject.toml  # 验证修改
 
       - name: Build package
         run: python -m build
