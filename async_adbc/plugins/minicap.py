@@ -86,7 +86,12 @@ class MinicapPlugin(Plugin):
         if b"inaccessible or not found" in raw_data:
             raise RuntimeError(raw_data.decode(),"inaccessible or not found")
 
-        return raw_data
+        # 跳过开头的日志信息，找到 JPEG 起始标记 (0xffd8)
+        jpeg_start = raw_data.find(b"\xff\xd8")
+        if jpeg_start == -1:
+            raise RuntimeError(f"minicap 输出中没有找到 JPEG 数据，输出: {raw_data!r}")
+        
+        return raw_data[jpeg_start:]
 
     async def screencap(self, filename="screencap.jpg"):
         """
