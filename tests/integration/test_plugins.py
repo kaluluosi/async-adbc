@@ -181,7 +181,7 @@ class TestMinicapPluginIntegration:
         device = await adbc.device("emulator-5554")
         try:
             # 初始化
-            await device.minicap.init()
+            await device.minicap.init(force=True)
 
             # 获取截图
             frame = await device.minicap.get_frame()

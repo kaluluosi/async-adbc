@@ -6,21 +6,25 @@ from async_adbc.plugin import Plugin, register_plugin
 class MinicapPlugin(Plugin):
     PUSH_TO = "/data/local/tmp"
 
-    async def init(self):
+    async def init(self, force: bool = False):
         """
         初始化minicap
         """
-        from importlib.resources import files, as_file
+        try:
+            from importlib.resources import files, as_file
+        except ImportError:
+            from importlib_resources import files, as_file
 
         exists = await self._device.file_exists("/data/local/tmp/minicap")
         exists = exists and await self._device.file_exists(
             "/data/local/tmp/minicap.so"
         )
-        if exists:
+        if exists and not force:
             return
 
         props = await self._device.get_properties()
-        abi = props.get("ro.product.cpu.abi", "unknown")
+        # 优先获取64位abi
+        abi = props.get("ro.product.cpu.abi64") or props.get("ro.product.cpu.abi", "unknown")
         pre_sdk = props.get("ro.build.version.preview_sdk", "unknown")
         rel_sdk = props.get("ro.build.version.release", "unknown")
         sdk = props.get("ro.build.version.sdk")
@@ -45,16 +49,8 @@ class MinicapPlugin(Plugin):
 
             await self._device.push(binfile_path, self.PUSH_TO + "/minicap", chmod=0o755)
 
-        # 查找 minicap.so
-        sofile_traversable = minicap_traversable / "minicap-shared" / "aosp" / "libs" / f"android-{sdk}" / abi / "minicap.so"
-        
-        # 检查是否存在，不存在则尝试用 rel_sdk
-        try:
-            # 尝试检查文件是否存在（Traversable 的 is_file() 方法）
-            if not sofile_traversable.is_file():
-                sofile_traversable = minicap_traversable / "minicap-shared" / "aosp" / "libs" / f"android-{rel_sdk}" / abi / "minicap.so"
-        except Exception:
-            sofile_traversable = minicap_traversable / "minicap-shared" / "aosp" / "libs" / f"android-{rel_sdk}" / abi / "minicap.so"
+        # 直接用 abi 目录下的 minicap.so
+        sofile_traversable = minicap_traversable / abi / "minicap.so"
 
         # 推送 minicap.so
         with as_file(sofile_traversable) as sofile_path:

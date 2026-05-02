@@ -32,7 +32,10 @@ class ScrcpyPlugin(Plugin):
         """
         初始化 scrcpy，推送 scrcpy-server.jar 到设备
         """
-        from importlib.resources import files, as_file
+        try:
+            from importlib.resources import files, as_file
+        except ImportError:
+            from importlib_resources import files, as_file
 
         exists = await self._device.file_exists("/data/local/tmp/scrcpy-server.jar")
         if exists:
