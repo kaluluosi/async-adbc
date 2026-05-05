@@ -12,7 +12,6 @@ from . import utils  # noqa: F401
 from . import forward  # noqa: F401
 from . import am  # noqa: F401
 from . import logcat  # noqa: F401
-from . import minicap  # noqa: F401
 from . import wm  # noqa: F401
 from . import input  # noqa: F401
 from . import scrcpy  # noqa: F401
@@ -32,7 +31,6 @@ from .utils import UtilsPlugin
 from .forward import ForwardPlugin
 from .am import ActivityManagerPlugin
 from .logcat import LogcatPlugin
-from .minicap import MinicapPlugin
 from .wm import WMPlugin
 from .input import InputPlugin
 from .scrcpy import ScrcpyPlugin
@@ -52,7 +50,6 @@ __all__ = [
     "TrafficPlugin",
     "ForwardPlugin",
     "LogcatPlugin",
-    "MinicapPlugin",
     "WMPlugin",
     "InputPlugin",
     "ScrcpyPlugin",

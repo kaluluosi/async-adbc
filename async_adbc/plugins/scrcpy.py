@@ -49,7 +49,7 @@ class ScrcpyPlugin(Plugin):
 
         await self._device.push(jarfile_path, self.PUSH_TO + "/scrcpy-server.jar", chmod=0o644)
 
-    async def start(self, max_size: int = 0, bit_rate: int = 8000000, port: Optional[int] = None):
+    async def start(self, max_size: int = 0, bit_rate: int = 8000000, port: Optional[int] = None, queue_size: int = 10):
         """
         启动 scrcpy 服务器并建立连接
 
@@ -57,10 +57,12 @@ class ScrcpyPlugin(Plugin):
             max_size: 最大分辨率 (0 表示不限制)
             bit_rate: 比特率
             port: 本地端口 (None 则使用默认端口)
+            queue_size: 帧队列大小（用于流式输出）
         """
         await self.init()
 
         self._local_port = port or self.DEFAULT_PORT
+        self._queue_size = queue_size
 
         # 设置端口转发
         await self._device.forward.forward(f"tcp:{self._local_port}", "localabstract:scrcpy")
@@ -91,8 +93,10 @@ class ScrcpyPlugin(Plugin):
         """
         self._is_running = False
 
-        # 停止 StreamReceiver
+        # 通知 StreamReceiver 的等待者
         if self._stream_receiver:
+            async with self._stream_receiver._queue_not_empty:
+                self._stream_receiver._queue_not_empty.notify_all()
             await self._stream_receiver.stop()
 
         # 关闭 socket 连接
@@ -139,7 +143,7 @@ class ScrcpyPlugin(Plugin):
         self._device_info = await self._read_device_info()
 
         # 创建 StreamReceiver 和 InputController
-        self._stream_receiver = StreamReceiver(self._stream_reader)
+        self._stream_receiver = StreamReceiver(self._stream_reader, queue_size=self._queue_size)
         self._input_controller = InputController(self._stream_writer, self._device_info['width'], self._device_info['height'])
 
         # 启动接收流
@@ -225,19 +229,71 @@ class ScrcpyPlugin(Plugin):
         if self._input_controller:
             await self._input_controller.text(text)
 
+    async def screencap(self, timeout: float = 1.0) -> Optional[bytes]:
+        """
+        截取当前屏幕帧
+
+        Args:
+            timeout: 等待帧的超时时间（秒）
+
+        Returns:
+            bytes: 视频帧数据（H.264 编码），超时返回 None
+        """
+        start_time = time.time()
+        while time.time() - start_time < timeout:
+            frame = await self.get_frame()
+            if frame:
+                return frame
+            await asyncio.sleep(0.01)
+        return None
+
+    async def stream_frames(self):
+        """
+        异步生成器，持续生成视频帧
+
+        Yields:
+            bytes: 视频帧数据（H.264 编码）
+        """
+        if not self._stream_receiver:
+            return
+
+        async for frame in self._stream_receiver:
+            yield frame
+
+    async def record(self, output_path: str, duration: Optional[float] = None):
+        """
+        录制视频到文件
+
+        Args:
+            output_path: 输出文件路径
+            duration: 录制时长（秒），None 表示持续录制直到 stop() 被调用
+        """
+        if not self._is_running:
+            raise RuntimeError("Scrcpy not running, call start() first")
+
+        start_time = time.time()
+
+        with open(output_path, 'wb') as f:
+            async for frame in self.stream_frames():
+                f.write(frame)
+                
+                if duration and (time.time() - start_time >= duration):
+                    break
+
 
 class StreamReceiver:
     """
     视频流接收类
     """
 
-    def __init__(self, reader: asyncio.StreamReader):
+    def __init__(self, reader: asyncio.StreamReader, queue_size: int = 10):
         self._reader = reader
         self._on_frame = None
         self._task = None
         self._running = False
         self._latest_frame = None
-        self._frame_queue = deque(maxlen=1)  # Keep only the latest frame
+        self._frame_queue = deque(maxlen=queue_size)  # 可配置队列大小
+        self._queue_not_empty = asyncio.Condition()  # 条件变量，用于通知队列有新帧
 
     def set_frame_callback(self, callback: Callable[[bytes], None]):
         """
@@ -291,6 +347,11 @@ class StreamReceiver:
                 frame_data = await self._reader.readexactly(length)
                 # Store the latest frame
                 self._latest_frame = frame_data
+                # Add to queue
+                self._frame_queue.append(frame_data)
+                # Notify waiting consumers
+                async with self._queue_not_empty:
+                    self._queue_not_empty.notify_all()
                 # Call the callback if set
                 if self._on_frame:
                     self._on_frame(frame_data)
@@ -298,6 +359,29 @@ class StreamReceiver:
             pass
         except Exception:
             pass
+
+    def __aiter__(self):
+        """
+        异步迭代器入口
+        """
+        return self
+
+    async def __anext__(self):
+        """
+        异步迭代器获取下一帧
+        """
+        async with self._queue_not_empty:
+            # Wait until queue is not empty
+            while not self._frame_queue and self._running:
+                await self._queue_not_empty.wait()
+            
+            if not self._running:
+                raise StopAsyncIteration
+            
+            if self._frame_queue:
+                return self._frame_queue.popleft()
+            else:
+                raise StopAsyncIteration
 
 
 class InputController:
