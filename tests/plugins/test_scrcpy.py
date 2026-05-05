@@ -46,6 +46,203 @@ class TestScrcpyPlugin:
                 with pytest.raises(FileNotFoundError):
                     await scrcpy_plugin.init()
 
+    @pytest.mark.asyncio
+    async def test_screencap(self, scrcpy_plugin, mock_device):
+        """测试 screencap 方法"""
+        # Mock necessary components
+        mock_device.file_exists = AsyncMock(return_value=True)
+        mock_device.forward = MagicMock()
+        mock_device.forward.forward = AsyncMock()
+        mock_device.forward.forward_remove = AsyncMock()
+        
+        mock_response = MagicMock()
+        mock_response.reader = MagicMock()
+        mock_response.close = MagicMock()
+        mock_device.request = AsyncMock(return_value=mock_response)
+        
+        # Mock stream reader/writer
+        mock_reader = MagicMock()
+        mock_writer = MagicMock()
+        mock_writer.close = MagicMock()
+        mock_writer.wait_closed = AsyncMock()
+        
+        # Mock device info response
+        device_name = b"test_device"
+        device_info_data = bytes([len(device_name)]) + device_name + struct.pack("!HH", 1080, 1920)
+        
+        # Mock frame data
+        test_frame = b"test frame"
+        header = struct.pack("!QI", 123456789, len(test_frame))
+        
+        # Mock readexactly
+        readexactly_call_count = 0
+        async def mock_readexactly(n):
+            nonlocal readexactly_call_count
+            readexactly_call_count += 1
+            if readexactly_call_count == 1:
+                return device_info_data[:1]  # name len
+            elif readexactly_call_count == 2:
+                return device_info_data[1:1+len(device_name)]  # name
+            elif readexactly_call_count == 3:
+                return device_info_data[1+len(device_name):]  # size
+            elif readexactly_call_count == 4:
+                return header
+            elif readexactly_call_count == 5:
+                return test_frame
+            else:
+                await asyncio.sleep(0.1)
+                raise asyncio.CancelledError()
+        
+        mock_reader.readexactly = mock_readexactly
+        
+        with patch("asyncio.open_connection", return_value=(mock_reader, mock_writer)):
+            await scrcpy_plugin.start()
+            
+            # Test screencap
+            frame = await scrcpy_plugin.screencap(timeout=0.5)
+            assert frame == test_frame
+            
+            await scrcpy_plugin.stop()
+
+    @pytest.mark.asyncio
+    async def test_stream_frames(self, scrcpy_plugin, mock_device):
+        """测试 stream_frames 方法"""
+        # Mock necessary components
+        mock_device.file_exists = AsyncMock(return_value=True)
+        mock_device.forward = MagicMock()
+        mock_device.forward.forward = AsyncMock()
+        mock_device.forward.forward_remove = AsyncMock()
+        
+        mock_response = MagicMock()
+        mock_response.reader = MagicMock()
+        mock_response.close = MagicMock()
+        mock_device.request = AsyncMock(return_value=mock_response)
+        
+        # Mock stream reader/writer
+        mock_reader = MagicMock()
+        mock_writer = MagicMock()
+        mock_writer.close = MagicMock()
+        mock_writer.wait_closed = AsyncMock()
+        
+        # Mock device info response
+        device_name = b"test_device"
+        device_info_data = bytes([len(device_name)]) + device_name + struct.pack("!HH", 1080, 1920)
+        
+        # Mock frame data
+        test_frames = [b"frame 1", b"frame 2", b"frame 3"]
+        
+        # Mock readexactly
+        readexactly_call_count = 0
+        async def mock_readexactly(n):
+            nonlocal readexactly_call_count
+            if readexactly_call_count < 3:
+                # Device info
+                if readexactly_call_count == 0:
+                    readexactly_call_count += 1
+                    return device_info_data[:1]
+                elif readexactly_call_count == 1:
+                    readexactly_call_count += 1
+                    return device_info_data[1:1+len(device_name)]
+                elif readexactly_call_count == 2:
+                    readexactly_call_count += 1
+                    return device_info_data[1+len(device_name):]
+            else:
+                # Frame data
+                frame_idx = (readexactly_call_count - 3) // 2
+                if frame_idx >= len(test_frames):
+                    await asyncio.sleep(0.1)
+                    raise asyncio.CancelledError()
+                
+                if (readexactly_call_count - 3) % 2 == 0:
+                    # Header
+                    readexactly_call_count += 1
+                    return struct.pack("!QI", 123456789 + frame_idx, len(test_frames[frame_idx]))
+                else:
+                    # Frame
+                    readexactly_call_count += 1
+                    return test_frames[frame_idx]
+        
+        mock_reader.readexactly = mock_readexactly
+        
+        with patch("asyncio.open_connection", return_value=(mock_reader, mock_writer)):
+            await scrcpy_plugin.start()
+            
+            # Test stream_frames
+            received_frames = []
+            async for frame in scrcpy_plugin.stream_frames():
+                received_frames.append(frame)
+                if len(received_frames) >= len(test_frames):
+                    break
+            
+            assert received_frames == test_frames
+            
+            await scrcpy_plugin.stop()
+
+    @pytest.mark.asyncio
+    async def test_record(self, scrcpy_plugin, mock_device, tmp_path):
+        """测试 record 方法"""
+        # Mock necessary components
+        mock_device.file_exists = AsyncMock(return_value=True)
+        mock_device.forward = MagicMock()
+        mock_device.forward.forward = AsyncMock()
+        mock_device.forward.forward_remove = AsyncMock()
+        
+        mock_response = MagicMock()
+        mock_response.reader = MagicMock()
+        mock_response.close = MagicMock()
+        mock_device.request = AsyncMock(return_value=mock_response)
+        
+        # Mock stream reader/writer
+        mock_reader = MagicMock()
+        mock_writer = MagicMock()
+        mock_writer.close = MagicMock()
+        mock_writer.wait_closed = AsyncMock()
+        
+        # Mock device info response
+        device_name = b"test_device"
+        device_info_data = bytes([len(device_name)]) + device_name + struct.pack("!HH", 1080, 1920)
+        
+        # Mock frame data
+        test_frame = b"test frame"
+        header = struct.pack("!QI", 123456789, len(test_frame))
+        
+        # Mock readexactly
+        readexactly_call_count = 0
+        async def mock_readexactly(n):
+            nonlocal readexactly_call_count
+            readexactly_call_count += 1
+            if readexactly_call_count == 1:
+                return device_info_data[:1]
+            elif readexactly_call_count == 2:
+                return device_info_data[1:1+len(device_name)]
+            elif readexactly_call_count == 3:
+                return device_info_data[1+len(device_name):]
+            elif readexactly_call_count == 4:
+                return header
+            elif readexactly_call_count == 5:
+                return test_frame
+            else:
+                await asyncio.sleep(0.1)
+                raise asyncio.CancelledError()
+        
+        mock_reader.readexactly = mock_readexactly
+        
+        output_file = tmp_path / "test_record.h264"
+        
+        with patch("asyncio.open_connection", return_value=(mock_reader, mock_writer)):
+            await scrcpy_plugin.start()
+            
+            # Test record
+            await scrcpy_plugin.record(str(output_file), duration=0.1)
+            
+            await scrcpy_plugin.stop()
+        
+        # Verify file content
+        assert output_file.exists()
+        with open(output_file, "rb") as f:
+            content = f.read()
+            assert test_frame in content
+
 
 @pytest.mark.unit
 class TestInputController:
@@ -218,3 +415,50 @@ class TestStreamReceiver:
         # 验证
         assert receiver.get_latest_frame() == test_frame
         callback.assert_called_once_with(test_frame)
+
+    @pytest.mark.asyncio
+    async def test_async_iteration(self):
+        """测试异步迭代"""
+        # 创建测试数据
+        test_frames = [b"frame 1", b"frame 2", b"frame 3"]
+        
+        # Mock reader
+        mock_reader = MagicMock()
+        
+        call_count = 0
+        async def mock_readexactly(n):
+            nonlocal call_count
+            if call_count >= len(test_frames) * 2:
+                await asyncio.sleep(0.1)
+                raise asyncio.CancelledError()
+            
+            frame_idx = call_count // 2
+            if call_count % 2 == 0:
+                # 返回 header
+                header = struct.pack("!QI", 123456789 + frame_idx, len(test_frames[frame_idx]))
+                call_count += 1
+                return header
+            else:
+                # 返回 frame
+                call_count += 1
+                return test_frames[frame_idx]
+        
+        mock_reader.readexactly = mock_readexactly
+        
+        receiver = StreamReceiver(mock_reader, queue_size=10)
+        
+        # 启动接收循环
+        await receiver.start()
+        
+        # 收集迭代的帧
+        received_frames = []
+        try:
+            async for frame in receiver:
+                received_frames.append(frame)
+                if len(received_frames) >= len(test_frames):
+                    break
+        finally:
+            await receiver.stop()
+        
+        # 验证
+        assert received_frames == test_frames
