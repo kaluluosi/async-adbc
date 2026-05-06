@@ -1,63 +1,79 @@
-import os
+"""
+Scrcpy plugin implementation using pyscrcpy library.
+
+This plugin provides Android device screen mirroring and control functionality
+using the mature pyscrcpy library instead of custom protocol implementation.
+"""
 import asyncio
-import struct
+import threading
+import queue
 import time
-from typing import Callable, Optional, TYPE_CHECKING
-from collections import deque
-from importlib import resources
+from typing import Optional, Callable, Any, Dict, Generator, TYPE_CHECKING
+from concurrent.futures import ThreadPoolExecutor
+
 from async_adbc.plugin import Plugin, register_plugin
 
 if TYPE_CHECKING:
     from async_adbc.device import Device
 
+# Try to import pyscrcpy, but don't fail if not available
+try:
+    from pyscrcpy import Client
+    HAS_PYSCRCPY = True
+except ImportError:
+    HAS_PYSCRCPY = False
+    Client = None
+
 
 @register_plugin("scrcpy", "scrcpy")
 class ScrcpyPlugin(Plugin):
-    PUSH_TO = "/data/local/tmp"
-    DEFAULT_PORT = 27183
-
+    """
+    Scrcpy plugin for Android device screen mirroring and control.
+    
+    This implementation uses the pyscrcpy library which provides a mature
+    and stable implementation of the scrcpy protocol.
+    """
+    
     def __init__(self, device: "Device"):
         super().__init__(device)
-        self._server_response = None  # 保存 Response 对象，防止被 GC
-        self._server_reader = None
-        self._stream_reader = None
-        self._stream_writer = None
+        
+        # pyscrcpy client and related state
+        self._client = None
         self._is_running = False
-        self._stream_receiver = None
-        self._input_controller = None
-        self._local_port = None
-        self._device_info = None
-
+        self._executor = None
+        self._frame_queue = queue.Queue(maxsize=10)
+        self._frame_callback = None
+        self._device_info = {}
+        
+        # Thread safety
+        self._lock = threading.Lock()
+    
     async def init(self):
         """
-        初始化 scrcpy，推送 scrcpy-server.jar 到设备
+        Initialize scrcpy. 
+        
+        Note: pyscrcpy handles server deployment automatically,
+        so this method doesn't need to push any files.
         """
-        try:
-            from importlib.resources import files, as_file
-        except ImportError:
-            from importlib_resources import files, as_file
-
-        exists = await self._device.file_exists("/data/local/tmp/scrcpy-server.jar")
-        if exists:
-            return
-
-        # 用官方最佳实践 importlib.resources 定位 vendor 目录
-        vendor_traversable = files("async_adbc") / "vendor" / "scrcpy"
-        jarfile_traversable = vendor_traversable / "scrcpy-server.jar"
-
-        # 使用 as_file 确保在安装后也能正常访问
-        with as_file(jarfile_traversable) as jarfile_path:
-            if not os.path.exists(jarfile_path):
-                raise FileNotFoundError(jarfile_path, "没有找到 scrcpy-server.jar")
-
-            await self._device.push(jarfile_path, self.PUSH_TO + "/scrcpy-server.jar", chmod=0o644)
-
+        if not HAS_PYSCRCPY:
+            raise RuntimeError(
+                "pyscrcpy is not installed. "
+                "Please install it with: pip install pyscrcpy "
+                "or install async-adbc with scrcpy extras: "
+                "pip install async-adbc[scrcpy]"
+            )
+        
+        # Check if scrcpy-server.jar exists on device (pyscrcpy will handle this)
+        # We don't need to push it manually
+        
+        return
+    
     async def check_device_support(self) -> dict:
         """
-        检查设备是否支持 scrcpy
+        Check if device supports scrcpy.
         
         Returns:
-            dict: 包含支持信息和建议的字典
+            dict: Dictionary containing support information and warnings
         """
         result = {
             'supported': True,
@@ -66,7 +82,7 @@ class ScrcpyPlugin(Plugin):
         }
         
         try:
-            # 获取设备信息
+            # Get device information
             api_level = await self._device.shell("getprop ro.build.version.sdk")
             android_version = await self._device.shell("getprop ro.build.version.release")
             cpu_abi = await self._device.shell("getprop ro.product.cpu.abi")
@@ -77,610 +93,418 @@ class ScrcpyPlugin(Plugin):
                 'cpu_abi': cpu_abi.strip()
             }
             
-            # 检查 API 级别
+            # Check API level
             try:
                 api = int(api_level.strip())
                 if api < 21:
                     result['supported'] = False
-                    result['warnings'].append(f"API 级别 {api} 太低，需要 API 21+ (Android 5.0+)")
+                    result['warnings'].append(f"API level {api} is too low, requires API 21+ (Android 5.0+)")
             except ValueError:
                 pass
             
-            # 检查是否为模拟器
+            # Check if emulator
             if 'emulator' in cpu_abi.lower() or '127.0.0.1:' in self._device.serialno:
-                result['warnings'].append("检测到模拟器，scrcpy 服务器可能会不稳定")
+                result['warnings'].append("Detected emulator, scrcpy server might be unstable")
             
-            # scrcpy-server.jar 是纯 Java 应用，理论上不受 CPU 架构限制
-            # 但 x86 架构的模拟器可能会有一些不稳定的情况
+            # scrcpy-server.jar is pure Java, theoretically not limited by CPU architecture
+            # But x86 emulators might have some instability
             if 'x86' in cpu_abi.lower() and 'emulator' in self._device.serialno.lower():
-                result['warnings'].append("检测到 x86 架构模拟器，scrcpy 在模拟器上可能不稳定")
+                result['warnings'].append("Detected x86 architecture emulator, scrcpy might be unstable on emulator")
             
         except Exception as e:
-            result['warnings'].append(f"检查设备支持时出错: {e}")
+            result['warnings'].append(f"Error checking device support: {e}")
         
         return result
-
-    async def start(self, max_size: int = 0, bit_rate: int = 8000000, port: Optional[int] = None, queue_size: int = 10, check_support: bool = True):
+    
+    async def start(
+        self,
+        max_size: int = 720,
+        bit_rate: int = 2000000,
+        check_support: bool = True,
+        queue_size: int = 10,
+        max_fps: int = 15
+    ):
         """
-        启动 scrcpy 服务器并建立连接
-
+        Start scrcpy screen mirroring.
+        
         Args:
-            max_size: 最大分辨率 (0 表示不限制)
-            bit_rate: 比特率
-            port: 本地端口 (None 则使用默认端口)
-            queue_size: 帧队列大小（用于流式输出）
-            check_support: 是否检查设备支持（默认为 True）
+            max_size: Maximum dimension of video stream (width or height)
+            bit_rate: Video bit rate in bits per second
+            check_support: Whether to check device support before starting
+            queue_size: Maximum frame queue size
+            max_fps: Maximum frames per second (0 for no limit)
+            
+        Raises:
+            RuntimeError: If pyscrcpy is not installed or device not supported
         """
-        await self.init()
-
-        # 检查设备支持
+        if not HAS_PYSCRCPY:
+            raise RuntimeError(
+                "pyscrcpy is not installed. "
+                "Please install it with: pip install pyscrcpy"
+            )
+        
+        if self._is_running:
+            return
+        
+        # Check device support if requested
         if check_support:
             support_info = await self.check_device_support()
-            if support_info['warnings']:
-                print(f"Scrcpy 警告: {support_info['warnings']}")
             if not support_info['supported']:
-                raise RuntimeError(f"设备不支持 scrcpy: {support_info['warnings']}")
-
-        self._local_port = port or self.DEFAULT_PORT
-        self._queue_size = queue_size
-
-        # 设置端口转发
-        await self._device.forward.forward(f"tcp:{self._local_port}", "localabstract:scrcpy")
-
-        # 启动 scrcpy 服务器
-        # 使用正确的 app_process 语法和完整类名
-        # scrcpy 版本检测和参数格式适配
+                raise RuntimeError(f"Device not supported: {support_info['warnings']}")
         
-        # 首先检查服务器版本（通过文件大小或内容）
-        # scrcpy 1.20 文件大小约 37KB，3.3.4 文件大小约 2.2MB
-        # 这里我们假设如果文件大小小于 100KB，则是 1.x 版本
-        server_size = 0
-        try:
-            # 获取服务器文件大小
-            result = await self._device.shell("stat -c%s /data/local/tmp/scrcpy-server.jar")
-            server_size = int(result.stdout.strip())
-        except:
-            pass
+        # Create executor for running pyscrcpy in background thread
+        self._executor = ThreadPoolExecutor(max_workers=1)
+        self._frame_queue = queue.Queue(maxsize=queue_size)
         
-        is_scrcpy_1_x = server_size < 100000  # 小于 100KB 认为是 1.x 版本
+        # Start pyscrcpy client in background thread
+        loop = asyncio.get_event_loop()
         
-        if is_scrcpy_1_x:
-            # scrcpy 1.x 版本参数格式
-            server_cmd = [
-                "CLASSPATH=/data/local/tmp/scrcpy-server.jar",
-                "app_process",
-                "/",
-                "com.genymobile.scrcpy.Server",
-                f"bit_rate={bit_rate}",  # 1.x 使用下划线，没有 -- 前缀
-                "log_level=info",
-            ]
-            if max_size > 0:
-                server_cmd.append(f"max_size={max_size}")
-        else:
-            # scrcpy 3.x 版本参数格式
-            server_cmd = [
-                "CLASSPATH=/data/local/tmp/scrcpy-server.jar",
-                "app_process",
-                "/",
-                "com.genymobile.scrcpy.Server",
-                "3.3.4",  # 客户端版本号
-                "--log-level=info",
-                f"--bit-rate={bit_rate}",
-            ]
-            if max_size > 0:
-                server_cmd.append(f"--max-size={max_size}")
-
-        # 直接调用 request（Device 继承自 LocalService），保存 Response 对象，防止被 GC
-        self._server_response = await self._device.request("shell", " ".join(server_cmd))
-        self._server_reader = self._server_response.reader
-        self._is_running = True
-        self._is_scrcpy_1_x = is_scrcpy_1_x  # 保存版本信息
-
-        # 建立 socket 连接
-        try:
-            await self._connect()
-        except Exception as e:
-            # 如果连接失败，清理资源
-            await self.stop()
-            raise RuntimeError(f"Scrcpy 连接失败: {e}") from e
-
-    async def stop(self):
-        """
-        停止 scrcpy 服务器
-        """
-        self._is_running = False
-
-        # 通知 StreamReceiver 的等待者
-        if self._stream_receiver:
-            async with self._stream_receiver._queue_not_empty:
-                self._stream_receiver._queue_not_empty.notify_all()
-            await self._stream_receiver.stop()
-
-        # 关闭 socket 连接
-        if self._stream_writer:
-            self._stream_writer.close()
-            await self._stream_writer.wait_closed()
-
-        # 停止服务器进程（关闭 Response）
-        if self._server_response:
-            try:
-                self._server_response.close()
-            except Exception:
-                pass
-
-        # 移除端口转发
-        if self._local_port:
-            try:
-                await self._device.forward.forward_remove(f"tcp:{self._local_port}")
-            except Exception:
-                pass
-
-        self._server_response = None
-        self._server_reader = None
-        self._stream_reader = None
-        self._stream_writer = None
-        self._stream_receiver = None
-        self._input_controller = None
-        self._local_port = None
-        self._device_info = None
-
-    async def _connect(self):
-        """
-        建立与 scrcpy 服务器的 socket 连接
-        """
-        # 等待服务器启动（增加等待时间）
-        max_retries = 10
-        for attempt in range(max_retries):
-            try:
-                # 等待服务器启动
-                await asyncio.sleep(0.5)
-
-                # 连接到本地端口
-                self._stream_reader, self._stream_writer = await asyncio.open_connection(
-                    '127.0.0.1', self._local_port
+        def start_client():
+            """Start pyscrcpy client in background thread"""
+            with self._lock:
+                # Create pyscrcpy client
+                self._client = Client(
+                    device=self._device.serialno,
+                    max_size=max_size,
+                    bitrate=bit_rate,
+                    max_fps=max_fps,
+                    block_frame=True,
+                    stay_awake=True,
+                    skip_same_frame=False
                 )
                 
-                # 根据服务器版本使用不同的握手协议
-                if self._is_scrcpy_1_x:
-                    # scrcpy 1.x 协议：客户端先接收一个 dummy byte
-                    dummy_byte = await self._stream_reader.readexactly(1)
-                    if not dummy_byte:
-                        raise ConnectionError("Did not receive Dummy Byte!")
-                else:
-                    # scrcpy 3.x 协议：TODO - 需要找到正确的协议
-                    # 目前我们不知道 3.x 的协议，暂时跳过
-                    pass
-                
-                # 读取初始设备信息（握手）
-                self._device_info = await self._read_device_info()
-                
-                # 成功读取设备信息，连接建立成功
-                return
-                
-            except (asyncio.IncompleteReadError, ConnectionRefusedError, OSError) as e:
-                # 连接失败，关闭当前连接并重试
-                if self._stream_writer:
+                # Set up frame callback
+                def on_frame(client, frame):
+                    """Callback for each frame received"""
                     try:
-                        self._stream_writer.close()
-                        await self._stream_writer.wait_closed()
-                    except Exception:
-                        pass
-                self._stream_reader = None
-                self._stream_writer = None
+                        # Put frame in queue (non-blocking)
+                        self._frame_queue.put_nowait(frame)
+                    except queue.Full:
+                        # Drop oldest frame if queue is full
+                        try:
+                            self._frame_queue.get_nowait()
+                            self._frame_queue.put_nowait(frame)
+                        except queue.Empty:
+                            pass
+                    
+                    # Call user callback if set
+                    if self._frame_callback:
+                        try:
+                            self._frame_callback(frame)
+                        except Exception:
+                            pass
                 
-                # 如果是最后一次尝试，抛出异常
-                if attempt == max_retries - 1:
-                    raise RuntimeError(f"无法连接到 scrcpy 服务器（重试 {max_retries} 次后失败）: {e}")
+                self._client.on_frame(on_frame)
                 
-                # 等待后重试
-                await asyncio.sleep(0.3)
-                continue
-
-        # 创建 StreamReceiver 和 InputController
-        self._stream_receiver = StreamReceiver(self._stream_reader, queue_size=self._queue_size)
-        self._input_controller = InputController(self._stream_writer, self._device_info['width'], self._device_info['height'])
-
-        # 启动接收流
-        await self._stream_receiver.start()
-
-    async def _read_device_info(self):
-        """
-        读取初始设备信息（握手阶段）
-        """
-        if not self._stream_reader:
+                # Start client (threaded mode)
+                self._client.start(threaded=True)
+                
+                # Store device info
+                if self._client.device_name:
+                    self._device_info['device_name'] = self._client.device_name
+                if self._client.resolution:
+                    self._device_info['width'] = self._client.resolution[0]
+                    self._device_info['height'] = self._client.resolution[1]
+                
+                self._is_running = True
+        
+        # Run in executor
+        await loop.run_in_executor(self._executor, start_client)
+        
+        # Wait a bit for client to initialize
+        await asyncio.sleep(1.0)
+    
+    async def stop(self):
+        """Stop scrcpy screen mirroring."""
+        if not self._is_running:
             return
-
-        if self._is_scrcpy_1_x:
-            # scrcpy 1.x 协议（基于 pyscrcpy）
-            # 1. 接收设备名称（最多 64 字节，以 null 结尾）
-            # 2. 接收分辨率（4 字节，大端序的宽和高）
-            device_name_bytes = await self._stream_reader.readexactly(64)
-            # 找到 null 终止符
-            null_pos = device_name_bytes.find(b'\x00')
-            if null_pos != -1:
-                device_name_bytes = device_name_bytes[:null_pos]
-            device_name = device_name_bytes.decode('utf-8', errors='ignore')
-
-            # 读取宽度和高度（4 字节，大端序）
-            size_bytes = await self._stream_reader.readexactly(4)
-            width = int.from_bytes(size_bytes[:2], byteorder='big')
-            height = int.from_bytes(size_bytes[2:], byteorder='big')
-        else:
-            # scrcpy 3.x 协议：TODO - 需要找到正确的协议
-            # 目前我们不知道 3.x 的协议，尝试通用的协议
+        
+        def stop_client():
+            """Stop pyscrcpy client in background thread"""
+            with self._lock:
+                if self._client:
+                    # Stop the client
+                    self._client.alive = False
+                    self._client = None
+                
+                self._is_running = False
+                self._device_info = {}
+                
+                # Clear frame queue
+                while not self._frame_queue.empty():
+                    try:
+                        self._frame_queue.get_nowait()
+                    except queue.Empty:
+                        break
+        
+        # Run in executor
+        loop = asyncio.get_event_loop()
+        await loop.run_in_executor(self._executor, stop_client)
+        
+        # Shutdown executor
+        if self._executor:
+            self._executor.shutdown(wait=False)
+            self._executor = None
+    
+    def set_frame_callback(self, callback: Callable[[Any], None]):
+        """
+        Set callback for frame updates.
+        
+        Args:
+            callback: Function that will be called with each new frame
+        """
+        self._frame_callback = callback
+    
+    async def get_frame(self, timeout: float = 1.0) -> Optional[Any]:
+        """
+        Get the latest frame from the queue.
+        
+        Args:
+            timeout: Maximum time to wait for a frame (seconds)
+            
+        Returns:
+            Latest frame (numpy array) or None if no frame available
+        """
+        if not self._is_running or self._frame_queue.empty():
+            return None
+        
+        try:
+            # Try to get frame without blocking
+            return self._frame_queue.get_nowait()
+        except queue.Empty:
+            # Wait for frame with timeout
             try:
-                # 尝试读取设备名称长度（1字节）
-                name_len_bytes = await self._stream_reader.readexactly(1)
-                name_len = name_len_bytes[0]
-
-                # 读取设备名称
-                device_name_bytes = await self._stream_reader.readexactly(name_len)
-                device_name = device_name_bytes.decode('utf-8', errors='ignore')
-
-                # 读取宽度和高度（4字节）
-                size_bytes = await self._stream_reader.readexactly(4)
-                width = int.from_bytes(size_bytes[:2], byteorder='big')
-                height = int.from_bytes(size_bytes[2:], byteorder='big')
-            except Exception as e:
-                # 如果失败，使用默认值
-                device_name = "Unknown Device"
-                width = 720
-                height = 1280
-
-        return {
-            'device_name': device_name,
-            'width': width,
-            'height': height
-        }
-
-    async def get_frame(self) -> Optional[bytes]:
+                return await asyncio.wait_for(
+                    asyncio.get_event_loop().run_in_executor(
+                        None, 
+                        lambda: self._frame_queue.get(timeout=timeout)
+                    ),
+                    timeout=timeout
+                )
+            except (asyncio.TimeoutError, queue.Empty):
+                return None
+    
+    async def wait_for_frame(self, timeout: float = 5.0) -> Optional[Any]:
         """
-        获取当前视频帧
-
+        Wait for a frame to become available.
+        
+        Args:
+            timeout: Maximum time to wait (seconds)
+            
         Returns:
-            bytes: 视频帧数据（H.264 编码）
-        """
-        if self._stream_receiver:
-            return self._stream_receiver.get_latest_frame()
-        return None
-
-    async def tap(self, x: int, y: int):
-        """
-        模拟点击
-
-        Args:
-            x: x 坐标
-            y: y 坐标
-        """
-        if self._input_controller:
-            await self._input_controller.tap(x, y)
-
-    async def swipe(self, x1: int, y1: int, x2: int, y2: int, duration: float = 0.3):
-        """
-        模拟滑动
-
-        Args:
-            x1, y1: 起始坐标
-            x2, y2: 结束坐标
-            duration: 持续时间（秒）
-        """
-        if self._input_controller:
-            await self._input_controller.swipe(x1, y1, x2, y2, duration)
-
-    async def keycode(self, keycode: int):
-        """
-        发送按键事件
-
-        Args:
-            keycode: Android 键码
-        """
-        if self._input_controller:
-            await self._input_controller.keycode(keycode)
-
-    async def text(self, text: str):
-        """
-        输入文本
-
-        Args:
-            text: 要输入的文本
-        """
-        if self._input_controller:
-            await self._input_controller.text(text)
-
-    async def screencap(self, timeout: float = 1.0) -> Optional[bytes]:
-        """
-        截取当前屏幕帧
-
-        Args:
-            timeout: 等待帧的超时时间（秒）
-
-        Returns:
-            bytes: 视频帧数据（H.264 编码），超时返回 None
+            Frame (numpy array) or None if timeout
         """
         start_time = time.time()
         while time.time() - start_time < timeout:
-            frame = await self.get_frame()
-            if frame:
+            frame = await self.get_frame(timeout=0.1)
+            if frame is not None:
                 return frame
             await asyncio.sleep(0.01)
         return None
-
-    async def stream_frames(self):
+    
+    async def stream_frames(self) -> Generator[Any, None, None]:
         """
-        异步生成器，持续生成视频帧
-
+        Async generator that yields frames as they arrive.
+        
         Yields:
-            bytes: 视频帧数据（H.264 编码）
+            Frame (numpy array)
         """
-        if not self._stream_receiver:
-            return
-
-        async for frame in self._stream_receiver:
-            yield frame
-
+        while self._is_running:
+            frame = await self.get_frame(timeout=0.1)
+            if frame is not None:
+                yield frame
+            else:
+                await asyncio.sleep(0.01)
+    
     async def record(self, output_path: str, duration: Optional[float] = None):
         """
-        录制视频到文件
-
+        Record video to file.
+        
         Args:
-            output_path: 输出文件路径
-            duration: 录制时长（秒），None 表示持续录制直到 stop() 被调用
+            output_path: Output file path
+            duration: Recording duration in seconds (None for indefinite)
+            
+        Note: This is a basic implementation that saves frames as images.
+        For proper video recording, consider using OpenCV VideoWriter.
         """
         if not self._is_running:
             raise RuntimeError("Scrcpy not running, call start() first")
-
-        start_time = time.time()
-
-        with open(output_path, 'wb') as f:
+        
+        try:
+            import cv2
+        except ImportError:
+            raise RuntimeError("OpenCV is required for recording. Install with: pip install opencv-python")
+        
+        # Get first frame to determine video properties
+        first_frame = await self.wait_for_frame(timeout=5.0)
+        if first_frame is None:
+            raise RuntimeError("No frames received, cannot start recording")
+        
+        height, width = first_frame.shape[:2]
+        
+        # Create video writer
+        fourcc = cv2.VideoWriter_fourcc(*'mp4v')
+        fps = 15  # Default FPS
+        
+        out = cv2.VideoWriter(output_path, fourcc, fps, (width, height))
+        
+        try:
+            start_time = time.time()
+            frame_count = 0
+            
             async for frame in self.stream_frames():
-                f.write(frame)
+                out.write(frame)
+                frame_count += 1
                 
                 if duration and (time.time() - start_time >= duration):
                     break
-
-
-class StreamReceiver:
-    """
-    视频流接收类
-    """
-
-    def __init__(self, reader: asyncio.StreamReader, queue_size: int = 10):
-        self._reader = reader
-        self._on_frame = None
-        self._task = None
-        self._running = False
-        self._latest_frame = None
-        self._frame_queue = deque(maxlen=queue_size)  # 可配置队列大小
-        self._queue_not_empty = asyncio.Condition()  # 条件变量，用于通知队列有新帧
-
-    def set_frame_callback(self, callback: Callable[[bytes], None]):
+                
+                # Limit recording frame rate
+                await asyncio.sleep(1.0 / fps)
+        finally:
+            out.release()
+    
+    async def screencap(self, timeout: float = 1.0):
         """
-        设置帧数据回调
-
+        Capture a screenshot.
+        
         Args:
-            callback: 回调函数，接收帧数据作为参数
-        """
-        self._on_frame = callback
-
-    def get_latest_frame(self) -> Optional[bytes]:
-        """
-        获取最新的帧数据
-
+            timeout: Maximum time to wait for a frame (seconds)
+            
         Returns:
-            bytes: 最新的视频帧数据
+            Frame (numpy array) or None if timeout
         """
-        return self._latest_frame
-
-    async def start(self):
+        return await self.wait_for_frame(timeout=timeout)
+    
+    # Control methods (delegated to pyscrcpy)
+    
+    async def tap(self, x: int, y: int):
         """
-        开始接收流
-        """
-        self._running = True
-        self._task = asyncio.create_task(self._receive_loop())
-
-    async def stop(self):
-        """
-        停止接收流
-        """
-        self._running = False
-        if self._task:
-            self._task.cancel()
-            try:
-                await self._task
-            except asyncio.CancelledError:
-                pass
-            self._task = None
-
-    async def _receive_loop(self):
-        """
-        接收循环
-        """
-        try:
-            while self._running:
-                # Read video packet header: 12 bytes (8 bytes timestamp + 4 bytes length, big-endian)
-                header = await self._reader.readexactly(12)
-                # Parse timestamp (8 bytes, big-endian) and length (4 bytes, big-endian)
-                timestamp, length = struct.unpack('!QI', header)
-                # Read the actual frame data
-                frame_data = await self._reader.readexactly(length)
-                # Store the latest frame
-                self._latest_frame = frame_data
-                # Add to queue
-                self._frame_queue.append(frame_data)
-                # Notify waiting consumers
-                async with self._queue_not_empty:
-                    self._queue_not_empty.notify_all()
-                # Call the callback if set
-                if self._on_frame:
-                    self._on_frame(frame_data)
-        except asyncio.CancelledError:
-            pass
-        except Exception:
-            pass
-
-    def __aiter__(self):
-        """
-        异步迭代器入口
-        """
-        return self
-
-    async def __anext__(self):
-        """
-        异步迭代器获取下一帧
-        """
-        async with self._queue_not_empty:
-            # Wait until queue is not empty
-            while not self._frame_queue and self._running:
-                await self._queue_not_empty.wait()
-            
-            if not self._running:
-                raise StopAsyncIteration
-            
-            if self._frame_queue:
-                return self._frame_queue.popleft()
-            else:
-                raise StopAsyncIteration
-
-
-class InputController:
-    """
-    输入控制类
-    """
-
-    # 控制消息类型
-    TYPE_INJECT_KEYCODE = 0
-    TYPE_INJECT_TEXT = 1
-    TYPE_INJECT_TOUCH_EVENT = 2
-    TYPE_INJECT_SCROLL_EVENT = 3
-
-    # 触摸事件动作
-    AKEY_EVENT_ACTION_DOWN = 0
-    AKEY_EVENT_ACTION_UP = 1
-    AMOTION_EVENT_ACTION_DOWN = 0
-    AMOTION_EVENT_ACTION_UP = 1
-    AMOTION_EVENT_ACTION_MOVE = 2
-
-    # Button constants
-    AMOTION_EVENT_BUTTON_PRIMARY = 1 << 0
-
-    def __init__(self, writer: asyncio.StreamWriter, screen_width: int, screen_height: int):
-        self._writer = writer
-        self._screen_width = screen_width
-        self._screen_height = screen_height
-
-    async def tap(self, x: int, y: int, pressure: float = 1.0):
-        """
-        发送点击事件
-
+        Tap at coordinates (x, y).
+        
+        This is a convenience method that performs touch down and up.
+        
         Args:
-            x, y: 坐标
-            pressure: 压力值 (0.0-1.0)
+            x: X coordinate
+            y: Y coordinate
         """
-        # Send DOWN event
-        await self._send_touch_event(self.AMOTION_EVENT_ACTION_DOWN, x, y, pressure)
-        # Send UP event
-        await self._send_touch_event(self.AMOTION_EVENT_ACTION_UP, x, y, pressure)
-
-    async def swipe(self, x1: int, y1: int, x2: int, y2: int, duration: float):
+        await self.touch(x, y, action=0)  # DOWN
+        await asyncio.sleep(0.05)  # Short delay
+        await self.touch(x, y, action=1)  # UP
+    
+    async def touch(self, x: int, y: int, action: int = 0, pointer_id: int = -1):
         """
-        发送滑动事件
-
+        Simulate touch event.
+        
         Args:
-            x1, y1: 起始坐标
-            x2, y2: 结束坐标
-            duration: 持续时间（秒）
+            x: X coordinate
+            y: Y coordinate
+            action: 0=DOWN, 1=UP, 2=MOVE (default: 0=DOWN)
+            pointer_id: Pointer ID (default: -1 for first pointer)
         """
-        # Send DOWN event
-        await self._send_touch_event(self.AMOTION_EVENT_ACTION_DOWN, x1, y1)
-        # Calculate steps
-        steps = max(int(duration * 60), 2)  # 60 steps per second
-        for i in range(1, steps):
-            t = i / steps
-            x = int(x1 + (x2 - x1) * t)
-            y = int(y1 + (y2 - y1) * t)
-            await self._send_touch_event(self.AMOTION_EVENT_ACTION_MOVE, x, y)
-            await asyncio.sleep(duration / steps)
-        # Send UP event at end position
-        await self._send_touch_event(self.AMOTION_EVENT_ACTION_UP, x2, y2)
-
-    async def keycode(self, keycode: int, action: int = None):
+        if not self._is_running or not self._client:
+            raise RuntimeError("Scrcpy not running, call start() first")
+        
+        def do_touch():
+            with self._lock:
+                if self._client and self._client.control:
+                    self._client.control.touch(x, y, action, pointer_id)
+        
+        loop = asyncio.get_event_loop()
+        await loop.run_in_executor(self._executor, do_touch)
+    
+    async def keycode(self, keycode: int):
         """
-        发送按键事件
-
+        Send keycode event (press and release).
+        
         Args:
-            keycode: Android 键码
-            action: 动作 (DOWN/UP) - if None, send both
+            keycode: Android keycode
         """
-        if action is None:
-            await self._send_keycode_event(keycode, self.AKEY_EVENT_ACTION_DOWN)
-            await asyncio.sleep(0.01)
-            await self._send_keycode_event(keycode, self.AKEY_EVENT_ACTION_UP)
-        else:
-            await self._send_keycode_event(keycode, action)
-
+        await self.key(keycode, action=0)  # DOWN
+        await asyncio.sleep(0.05)  # Short delay
+        await self.key(keycode, action=1)  # UP
+    
+    async def key(self, keycode: int, action: int = 0, repeat: int = 0):
+        """
+        Simulate key event.
+        
+        Args:
+            keycode: Android keycode
+            action: 0=DOWN, 1=UP (default: 0=DOWN)
+            repeat: Repeat count
+        """
+        if not self._is_running or not self._client:
+            raise RuntimeError("Scrcpy not running, call start() first")
+        
+        def do_key():
+            with self._lock:
+                if self._client and self._client.control:
+                    self._client.control.key(keycode, action, repeat)
+        
+        loop = asyncio.get_event_loop()
+        await loop.run_in_executor(self._executor, do_key)
+    
     async def text(self, text: str):
         """
-        发送文本输入
-
+        Input text.
+        
         Args:
-            text: 要输入的文本
+            text: Text to input
         """
-        # Text message: type (1) + length (2 bytes, big-endian) + text (UTF-8)
-        data = struct.pack('!BH', self.TYPE_INJECT_TEXT, len(text)) + text.encode('utf-8')
-        self._writer.write(data)
-        await self._writer.drain()
-
-    async def _send_touch_event(self, action: int, x: int, y: int, pressure: float = 1.0):
+        if not self._is_running or not self._client:
+            raise RuntimeError("Scrcpy not running, call start() first")
+        
+        def do_text():
+            with self._lock:
+                if self._client and self._client.control:
+                    self._client.control.text(text)
+        
+        loop = asyncio.get_event_loop()
+        await loop.run_in_executor(self._executor, do_text)
+    
+    async def swipe(self, start_x: int, start_y: int, end_x: int, end_y: int, 
+                    duration_ms: int = 100, steps: int = 10):
         """
-        发送触摸事件
-
+        Simulate swipe gesture.
+        
         Args:
-            action: 动作类型
-            x, y: 坐标
-            pressure: 压力值
+            start_x: Start X coordinate
+            start_y: Start Y coordinate
+            end_x: End X coordinate
+            end_y: End Y coordinate
+            duration_ms: Duration in milliseconds
+            steps: Number of steps in the swipe
         """
-        # Convert coordinates to 16-bit fixed-point (for scrcpy)
-        x_scaled = int(x * 0x10000 / self._screen_width)
-        y_scaled = int(y * 0x10000 / self._screen_height)
-        pressure_scaled = int(pressure * 0xFFFF)
-        # Touch event format: type (2) + action (1) + pointer id (8) + x (4) + y (4) + pressure (2) + buttons (4)
-        # Use 0xFFFFFFFFFFFFFFFF as pointer id (-1 in two's complement for 64-bit unsigned)
-        pointer_id = 0xFFFFFFFFFFFFFFFF
-        data = struct.pack(
-            '!BBQiiHI',
-            self.TYPE_INJECT_TOUCH_EVENT,
-            action,
-            pointer_id,
-            x_scaled,
-            y_scaled,
-            pressure_scaled,
-            self.AMOTION_EVENT_BUTTON_PRIMARY if action in (self.AMOTION_EVENT_ACTION_DOWN, self.AMOTION_EVENT_ACTION_MOVE) else 0
-        )
-        self._writer.write(data)
-        await self._writer.drain()
-
-    async def _send_keycode_event(self, keycode: int, action: int):
-        """
-        发送按键事件
-
-        Args:
-            keycode: Android 键码
-            action: 动作 (DOWN/UP)
-        """
-        # Key event format: type (0) + action (1) + keycode (4) + repeat (4) + meta state (4)
-        data = struct.pack('!BBIii', self.TYPE_INJECT_KEYCODE, action, keycode, 0, 0)
-        self._writer.write(data)
-        await self._writer.drain()
-
-    def _pack_message(self, msg_type: int, data: bytes) -> bytes:
-        """
-        打包控制消息
-
-        Args:
-            msg_type: 消息类型
-            data: 消息数据
-
-        Returns:
-            bytes: 打包后的消息
-        """
-        return struct.pack('!B', msg_type) + data
+        if not self._is_running or not self._client:
+            raise RuntimeError("Scrcpy not running, call start() first")
+        
+        # Implement swipe as a series of touch moves
+        await self.touch(start_x, start_y, action=0)  # DOWN
+        
+        for i in range(1, steps + 1):
+            ratio = i / steps
+            x = int(start_x + (end_x - start_x) * ratio)
+            y = int(start_y + (end_y - start_y) * ratio)
+            await self.touch(x, y, action=2)  # MOVE
+            await asyncio.sleep(duration_ms / 1000.0 / steps)
+        
+        await self.touch(end_x, end_y, action=1)  # UP
+    
+    # Properties
+    
+    @property
+    def device_name(self) -> Optional[str]:
+        """Get device name."""
+        return self._device_info.get('device_name')
+    
+    @property
+    def resolution(self) -> Optional[tuple]:
+        """Get screen resolution (width, height)."""
+        if 'width' in self._device_info and 'height' in self._device_info:
+            return (self._device_info['width'], self._device_info['height'])
+        return None
+    
+    @property
+    def is_running(self) -> bool:
+        """Check if scrcpy is running."""
+        return self._is_running
