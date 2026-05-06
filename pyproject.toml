@@ -38,7 +38,10 @@ docs = [
     "mkdocs>=1.5.3",
     "mkdocs-material>=9.4.0",
 ]
-scrcpy = []
+scrcpy = [
+    "av>=12.3.0",
+    "pillow>=10.4.0",
+]
 
 [project.urls]
 Homepage = "https://github.com/kaluluosi/async-adbc"
