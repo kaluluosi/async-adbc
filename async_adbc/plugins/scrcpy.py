@@ -211,16 +211,11 @@ class ScrcpyPlugin(Plugin):
                     '127.0.0.1', self._local_port
                 )
                 
-                # 发送客户端握手信息
-                # scrcpy 协议：先发送一个 dummy byte（0），然后发送 "scrcpy" 和版本信息
-                # 根据 scrcpy 源码，可能需要发送 dummy byte
-                self._stream_writer.write(b"\x00")  # dummy byte
-                await self._stream_writer.drain()
-                
-                # 然后发送 scrcpy 标识和版本
-                handshake = b"scrcpy" + (1).to_bytes(4, 'big')  # 版本 1
-                self._stream_writer.write(handshake)
-                await self._stream_writer.drain()
+                # scrcpy 协议：客户端先接收一个 dummy byte
+                # 根据 pyscrcpy 源码，服务器会先发送一个 dummy byte
+                dummy_byte = await self._stream_reader.readexactly(1)
+                if not dummy_byte:
+                    raise ConnectionError("Did not receive Dummy Byte!")
                 
                 # 读取初始设备信息（握手）
                 self._device_info = await self._read_device_info()
@@ -257,19 +252,22 @@ class ScrcpyPlugin(Plugin):
     async def _read_device_info(self):
         """
         读取初始设备信息（握手阶段）
+        根据 pyscrcpy 协议：
+        1. 接收设备名称（最多 64 字节，以 null 结尾）
+        2. 接收分辨率（4 字节，大端序的宽和高）
         """
         if not self._stream_reader:
             return
 
-        # 读取设备名称长度
-        name_len_bytes = await self._stream_reader.readexactly(1)
-        name_len = name_len_bytes[0]
+        # 读取设备名称（最多 64 字节，以 null 结尾）
+        device_name_bytes = await self._stream_reader.readexactly(64)
+        # 找到 null 终止符
+        null_pos = device_name_bytes.find(b'\x00')
+        if null_pos != -1:
+            device_name_bytes = device_name_bytes[:null_pos]
+        device_name = device_name_bytes.decode('utf-8', errors='ignore')
 
-        # 读取设备名称
-        device_name_bytes = await self._stream_reader.readexactly(name_len)
-        device_name = device_name_bytes.decode('utf-8')
-
-        # 读取宽度和高度
+        # 读取宽度和高度（4 字节，大端序）
         size_bytes = await self._stream_reader.readexactly(4)
         width = int.from_bytes(size_bytes[:2], byteorder='big')
         height = int.from_bytes(size_bytes[2:], byteorder='big')
