@@ -52,7 +52,54 @@ class ScrcpyPlugin(Plugin):
 
             await self._device.push(jarfile_path, self.PUSH_TO + "/scrcpy-server.jar", chmod=0o644)
 
-    async def start(self, max_size: int = 0, bit_rate: int = 8000000, port: Optional[int] = None, queue_size: int = 10):
+    async def check_device_support(self) -> dict:
+        """
+        检查设备是否支持 scrcpy
+        
+        Returns:
+            dict: 包含支持信息和建议的字典
+        """
+        result = {
+            'supported': True,
+            'warnings': [],
+            'device_info': {}
+        }
+        
+        try:
+            # 获取设备信息
+            api_level = await self._device.shell("getprop ro.build.version.sdk")
+            android_version = await self._device.shell("getprop ro.build.version.release")
+            cpu_abi = await self._device.shell("getprop ro.product.cpu.abi")
+            
+            result['device_info'] = {
+                'api_level': api_level.strip(),
+                'android_version': android_version.strip(),
+                'cpu_abi': cpu_abi.strip()
+            }
+            
+            # 检查 API 级别
+            try:
+                api = int(api_level.strip())
+                if api < 21:
+                    result['supported'] = False
+                    result['warnings'].append(f"API 级别 {api} 太低，需要 API 21+ (Android 5.0+)")
+            except ValueError:
+                pass
+            
+            # 检查是否为模拟器
+            if 'emulator' in cpu_abi.lower() or '127.0.0.1:' in self._device.serialno:
+                result['warnings'].append("检测到模拟器，scrcpy 服务器可能会不稳定")
+            
+            # 检查 CPU 架构
+            if 'x86' in cpu_abi.lower():
+                result['warnings'].append("检测到 x86 架构，可能存在兼容性问题")
+            
+        except Exception as e:
+            result['warnings'].append(f"检查设备支持时出错: {e}")
+        
+        return result
+
+    async def start(self, max_size: int = 0, bit_rate: int = 8000000, port: Optional[int] = None, queue_size: int = 10, check_support: bool = True):
         """
         启动 scrcpy 服务器并建立连接
 
@@ -61,8 +108,17 @@ class ScrcpyPlugin(Plugin):
             bit_rate: 比特率
             port: 本地端口 (None 则使用默认端口)
             queue_size: 帧队列大小（用于流式输出）
+            check_support: 是否检查设备支持（默认为 True）
         """
         await self.init()
+
+        # 检查设备支持
+        if check_support:
+            support_info = await self.check_device_support()
+            if support_info['warnings']:
+                print(f"Scrcpy 警告: {support_info['warnings']}")
+            if not support_info['supported']:
+                raise RuntimeError(f"设备不支持 scrcpy: {support_info['warnings']}")
 
         self._local_port = port or self.DEFAULT_PORT
         self._queue_size = queue_size
@@ -88,7 +144,12 @@ class ScrcpyPlugin(Plugin):
         self._is_running = True
 
         # 建立 socket 连接
-        await self._connect()
+        try:
+            await self._connect()
+        except Exception as e:
+            # 如果连接失败，清理资源
+            await self.stop()
+            raise RuntimeError(f"Scrcpy 连接失败: {e}") from e
 
     async def stop(self):
         """
@@ -134,16 +195,42 @@ class ScrcpyPlugin(Plugin):
         """
         建立与 scrcpy 服务器的 socket 连接
         """
-        # 等待服务器启动
-        await asyncio.sleep(0.5)
+        # 等待服务器启动（增加等待时间）
+        max_retries = 10
+        for attempt in range(max_retries):
+            try:
+                # 等待服务器启动
+                await asyncio.sleep(0.5)
 
-        # 连接到本地端口
-        self._stream_reader, self._stream_writer = await asyncio.open_connection(
-            '127.0.0.1', self._local_port
-        )
-
-        # 读取初始设备信息（握手）
-        self._device_info = await self._read_device_info()
+                # 连接到本地端口
+                self._stream_reader, self._stream_writer = await asyncio.open_connection(
+                    '127.0.0.1', self._local_port
+                )
+                
+                # 读取初始设备信息（握手）
+                self._device_info = await self._read_device_info()
+                
+                # 成功读取设备信息，连接建立成功
+                return
+                
+            except (asyncio.IncompleteReadError, ConnectionRefusedError, OSError) as e:
+                # 连接失败，关闭当前连接并重试
+                if self._stream_writer:
+                    try:
+                        self._stream_writer.close()
+                        await self._stream_writer.wait_closed()
+                    except Exception:
+                        pass
+                self._stream_reader = None
+                self._stream_writer = None
+                
+                # 如果是最后一次尝试，抛出异常
+                if attempt == max_retries - 1:
+                    raise RuntimeError(f"无法连接到 scrcpy 服务器（重试 {max_retries} 次后失败）: {e}")
+                
+                # 等待后重试
+                await asyncio.sleep(0.3)
+                continue
 
         # 创建 StreamReceiver 和 InputController
         self._stream_receiver = StreamReceiver(self._stream_reader, queue_size=self._queue_size)

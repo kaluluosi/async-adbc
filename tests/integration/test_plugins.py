@@ -183,17 +183,28 @@ class TestTempPluginIntegration:
 class TestScrcpyPluginIntegration:
     """测试 ScrcpyPlugin 集成"""
 
-    @pytest.mark.skip(reason="ScrcpyPlugin 需要更多调试，当前设备环境可能不支持")
     async def test_init_and_start_stop(self, target_serialno):
         """测试初始化、启动和停止 scrcpy"""
         adbc = ADBClient()
         device = await adbc.device(target_serialno)
         try:
+            # 检查设备支持
+            support_info = await device.scrcpy.check_device_support()
+            
+            # 如果有严重警告，跳过测试
+            if not support_info['supported']:
+                pytest.skip(f"设备不支持 scrcpy: {support_info['warnings']}")
+            
+            # 如果是模拟器或 x86 架构，跳过测试（已知不兼容）
+            for warning in support_info['warnings']:
+                if '模拟器' in warning or 'x86' in warning:
+                    pytest.skip(f"设备兼容性问题: {warning}")
+
             # 初始化
             await device.scrcpy.init()
 
-            # 启动 scrcpy
-            await device.scrcpy.start(max_size=720, bit_rate=2000000)
+            # 启动 scrcpy（禁用支持检查，因为已经检查过了）
+            await device.scrcpy.start(max_size=720, bit_rate=2000000, check_support=False)
 
             # 等待一下让服务启动
             import asyncio
@@ -222,13 +233,24 @@ class TestScrcpyPluginIntegration:
             device.close()
             adbc.close()
 
-    @pytest.mark.skip(reason="ScrcpyPlugin 需要更多调试，当前设备环境可能不支持")
     async def test_text_input(self, target_serialno):
         """测试文本输入"""
         adbc = ADBClient()
         device = await adbc.device(target_serialno)
         try:
-            await device.scrcpy.start(max_size=720, bit_rate=2000000)
+            # 检查设备支持
+            support_info = await device.scrcpy.check_device_support()
+            
+            # 如果有严重警告，跳过测试
+            if not support_info['supported']:
+                pytest.skip(f"设备不支持 scrcpy: {support_info['warnings']}")
+            
+            # 如果是模拟器或 x86 架构，跳过测试（已知不兼容）
+            for warning in support_info['warnings']:
+                if '模拟器' in warning or 'x86' in warning:
+                    pytest.skip(f"设备兼容性问题: {warning}")
+
+            await device.scrcpy.start(max_size=720, bit_rate=2000000, check_support=False)
 
             import asyncio
 
