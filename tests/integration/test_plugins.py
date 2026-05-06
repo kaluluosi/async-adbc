@@ -195,10 +195,13 @@ class TestScrcpyPluginIntegration:
             if not support_info['supported']:
                 pytest.skip(f"设备不支持 scrcpy: {support_info['warnings']}")
             
-            # 如果是模拟器或 x86 架构，跳过测试（已知不兼容）
-            for warning in support_info['warnings']:
-                if '模拟器' in warning or 'x86' in warning:
-                    pytest.skip(f"设备兼容性问题: {warning}")
+            # 检查是否为 x86 架构模拟器（已知在握手阶段失败）
+            device_info = support_info.get('device_info', {})
+            cpu_abi = device_info.get('cpu_abi', '').lower()
+            serialno = str(device.serialno).lower()
+            
+            if 'x86' in cpu_abi and ('emulator' in serialno or '127.0.0.1:' in serialno):
+                pytest.skip("x86 架构模拟器在 scrcpy 握手阶段不稳定（服务器能启动但连接立即关闭）")
 
             # 初始化
             await device.scrcpy.init()
@@ -245,10 +248,13 @@ class TestScrcpyPluginIntegration:
             if not support_info['supported']:
                 pytest.skip(f"设备不支持 scrcpy: {support_info['warnings']}")
             
-            # 如果是模拟器或 x86 架构，跳过测试（已知不兼容）
-            for warning in support_info['warnings']:
-                if '模拟器' in warning or 'x86' in warning:
-                    pytest.skip(f"设备兼容性问题: {warning}")
+            # 检查是否为 x86 架构模拟器（已知在握手阶段失败）
+            device_info = support_info.get('device_info', {})
+            cpu_abi = device_info.get('cpu_abi', '').lower()
+            serialno = str(device.serialno).lower()
+            
+            if 'x86' in cpu_abi and ('emulator' in serialno or '127.0.0.1:' in serialno):
+                pytest.skip("x86 架构模拟器在 scrcpy 握手阶段不稳定（服务器能启动但连接立即关闭）")
 
             await device.scrcpy.start(max_size=720, bit_rate=2000000, check_support=False)
 

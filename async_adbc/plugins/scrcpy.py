@@ -90,9 +90,10 @@ class ScrcpyPlugin(Plugin):
             if 'emulator' in cpu_abi.lower() or '127.0.0.1:' in self._device.serialno:
                 result['warnings'].append("检测到模拟器，scrcpy 服务器可能会不稳定")
             
-            # 检查 CPU 架构
-            if 'x86' in cpu_abi.lower():
-                result['warnings'].append("检测到 x86 架构，可能存在兼容性问题")
+            # scrcpy-server.jar 是纯 Java 应用，理论上不受 CPU 架构限制
+            # 但 x86 架构的模拟器可能会有一些不稳定的情况
+            if 'x86' in cpu_abi.lower() and 'emulator' in self._device.serialno.lower():
+                result['warnings'].append("检测到 x86 架构模拟器，scrcpy 在模拟器上可能不稳定")
             
         except Exception as e:
             result['warnings'].append(f"检查设备支持时出错: {e}")
@@ -127,11 +128,12 @@ class ScrcpyPlugin(Plugin):
         await self._device.forward.forward(f"tcp:{self._local_port}", "localabstract:scrcpy")
 
         # 启动 scrcpy 服务器
+        # 使用正确的 app_process 语法和完整类名
         server_cmd = [
             "CLASSPATH=/data/local/tmp/scrcpy-server.jar",
             "app_process",
-            "/data/local/tmp",
-            "scrcpy.Server",
+            "/",  # app_process 的工作目录，不是 /data/local/tmp
+            "com.genymobile.scrcpy.Server",  # 使用完整的 Java 类名
             "log_level=info",
             f"bit_rate={bit_rate}",
         ]
