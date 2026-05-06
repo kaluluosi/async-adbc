@@ -8,8 +8,20 @@ import logging
 from typing import Optional, Tuple, AsyncGenerator
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
+from io import BytesIO
 
 from async_adbc.plugin import Plugin, register_plugin
+
+# 尝试导入 PIL 和 av
+try:
+    from PIL import Image
+except ImportError:
+    Image = None
+
+try:
+    import av
+except ImportError:
+    av = None
 
 
 logger = logging.getLogger(__name__)
@@ -106,6 +118,18 @@ class ScrcpySession:
         # 7. 握手
         await self._handshake()
 
+        # 8. 用 WMPlugin 获取真实分辨率（修复握手读取错误问题）
+        try:
+            if self._device_info:
+                res = await self._device.wm.size()
+                phys_size = res.physical_size
+                if phys_size and "x" in phys_size:
+                    w, h = phys_size.split("x")
+                    self._device_info.width = int(w)
+                    self._device_info.height = int(h)
+        except Exception as e:
+            logger.debug(f"无法获取真实分辨率: {e}")
+
         self._running = True
 
     async def _find_available_port(self) -> int:
@@ -124,8 +148,20 @@ class ScrcpySession:
         args.append(f"bit_rate={self._bit_rate}")
         if self._stay_awake:
             args.append("stay_awake=true")
+        # 每10帧一个关键帧，让后续的 screencap() 更容易解码
+        args.append("keyframe_interval=10")
 
         return f"CLASSPATH={remote_path} app_process / com.genymobile.scrcpy.Server 3.3.4 {' '.join(args)}"
+
+    def _recv_exact(self, sock, size):
+        """接收 exact number of bytes"""
+        data = bytearray()
+        while len(data) < size:
+            chunk = sock.recv(size - len(data))
+            if not chunk:
+                raise ScrcpyError(f"Connection closed, expected {size} bytes, got {len(data)}")
+            data.extend(chunk)
+        return bytes(data)
 
     async def _handshake(self):
         """握手协议"""
@@ -133,26 +169,26 @@ class ScrcpySession:
         with ThreadPoolExecutor(max_workers=1) as executor:
             # 1. dummy byte (1 byte)
             dummy = await loop.run_in_executor(
-                executor, lambda: self._client_sock.recv(1)
+                executor, lambda: self._recv_exact(self._client_sock, 1)
             )
             if not dummy:
                 raise ScrcpyError("Handshake failed: no dummy byte")
 
             # 2. device name (64 bytes, null-terminated)
             name_bytes = await loop.run_in_executor(
-                executor, lambda: self._client_sock.recv(64)
+                executor, lambda: self._recv_exact(self._client_sock, 64)
             )
             name = name_bytes.split(b"\x00")[0].decode("utf-8", "replace")
 
             # 3. width (4 bytes BE)
             width_bytes = await loop.run_in_executor(
-                executor, lambda: self._client_sock.recv(4)
+                executor, lambda: self._recv_exact(self._client_sock, 4)
             )
             width = int.from_bytes(width_bytes, "big")
 
             # 4. height (4 bytes BE)
             height_bytes = await loop.run_in_executor(
-                executor, lambda: self._client_sock.recv(4)
+                executor, lambda: self._recv_exact(self._client_sock, 4)
             )
             height = int.from_bytes(height_bytes, "big")
 
@@ -181,17 +217,21 @@ class ScrcpySession:
                     logger.error(f"Error receiving frame: {e}")
                     break
 
-    async def screencap(self, timeout: float = 5.0) -> bytes:
-        """获取一帧 H.264 数据"""
+    async def screencap(self, timeout: float = 3.0) -> bytes:
+        """获取 H.264 数据（收集足够的数据用于解码）"""
         buffer = bytearray()
         start_time = asyncio.get_event_loop().time()
+        min_duration = 0.5  # 至少收集 0.5 秒的数据（最开始 test_2step.py 成功的参数）
+        min_size = 80000  # 至少收集 80K 数据
 
         async for chunk in self.stream_frames():
             buffer.extend(chunk)
-            # 我们需要至少一个完整的 NALU，简单起见先返回第一个 chunk
-            if len(buffer) > 0:
+
+            elapsed = asyncio.get_event_loop().time() - start_time
+            # 满足两个条件之一即可
+            if elapsed >= min_duration or len(buffer) >= min_size:
                 break
-            if asyncio.get_event_loop().time() - start_time > timeout:
+            if elapsed >= timeout:
                 break
 
         return bytes(buffer)
@@ -305,12 +345,63 @@ class ScrcpyPlugin(Plugin):
         async for frame in self._session.stream_frames():
             yield frame
 
-    async def screencap(self, timeout: float = 5.0) -> bytes:
-        """获取一帧 H.264 截图数据"""
+    async def screencap(self, save_file: Optional[str] = None, timeout: float = 3.0) -> bytes:
+        """获取一帧截图并保存为图片
+
+        Args:
+            save_file (str | None, optional): 保存文件，支持 png/jpg/jpeg/h264格式，为空就不保存.
+                如果没有扩展名，默认使用 png 格式. Defaults to None.
+            timeout (float, optional): 超时时间. Defaults to 5.0.
+
+        Returns:
+            bytes: 返回原始 H.264 二进制数据
+        """
         if not self._session:
             raise ScrcpyError("Session not started, call start() first")
 
-        return await self._session.screencap(timeout=timeout)
+        result = await self._session.screencap(timeout=timeout)
+
+        if save_file:
+            save_path = Path(save_file)
+            ext = save_path.suffix.lower()
+
+            # 如果没有扩展名，或者扩展名是图片，都按图片处理（默认png）
+            if not ext or ext in [".png", ".jpg", ".jpeg"]:
+                if av is None:
+                    raise ImportError("需要 av (PyAV) 包来解码 h264，运行: pip install av")
+                if Image is None:
+                    raise ImportError("需要 Pillow 包来保存图片，运行: pip install pillow")
+
+                # 解码 h264 数据并保存为图片
+                image = self._decode_h264_to_image(result)
+                if image:
+                    # 默认 png
+                    fmt = ext[1:] if ext else "png"
+                    # 如果没有扩展名，加上 .png
+                    final_path = save_path if ext else save_path.with_suffix(".png")
+                    image.save(str(final_path), format=fmt)
+                else:
+                    raise ScrcpyError("无法解码 h264 数据")
+            else:
+                # 保存原始 h264
+                with open(save_file, "wb") as f:
+                    f.write(result)
+
+        return result
+
+    def _decode_h264_to_image(self, h264_data: bytes):
+        """将 H.264 数据解码为 PIL Image"""
+        try:
+            # 用 BytesIO，简单稳定
+            container = av.open(BytesIO(h264_data))  # type: ignore
+            # 找到第一幅完整的画面
+            for frame in container.decode(video=0):
+                img = frame.to_image()
+                container.close()
+                return img
+        except Exception as e:
+            logger.error(f"解码 h264 失败: {e}")
+        return None
 
     async def record(self, output_path: str, duration: float = 10.0):
         """录制视频到文件"""
