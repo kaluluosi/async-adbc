@@ -1,19 +1,29 @@
 # ScrcpyPlugin
 
-Scrcpy 插件，提供屏幕镜像和设备控制功能。基于 Scrcpy 项目，支持获取 H.264 视频流、模拟点击、滑动、按键等操作。
+Scrcpy 插件，提供屏幕截图和视频录制功能。基于 Scrcpy 项目 v3.3.4。
 
 **访问方式：** `device.scrcpy`
+
+---
+
+## 安装可选依赖
+
+使用 Scrcpy 插件的图片解码功能需要安装可选依赖：
+
+```bash
+pip install async-adbc[scrcpy]
+# 或单独安装
+pip install av pillow
+```
 
 ---
 
 ## 简介
 
 Scrcpy 插件集成了 Scrcpy 功能，可以：
+- 获取设备屏幕截图（PNG/JPG）
 - 获取设备屏幕的 H.264 视频流
-- 模拟触摸输入（点击、滑动）
-- 发送按键事件
-- 输入文本
-- 实时屏幕镜像
+- 录制视频到本地文件
 
 ---
 
@@ -26,24 +36,14 @@ from async_adbc import ADBClient
 async def main():
     adbc = ADBClient()
     device = await adbc.device()
-    
+
     # 启动 scrcpy
-    await device.scrcpy.start(max_size=1080, bit_rate=4000000)
-    
-    # 获取一帧画面
-    frame = await device.scrcpy.get_frame()
-    if frame:
-        print(f"获取到视频帧，大小: {len(frame)} 字节")
-    
-    # 模拟点击
-    await device.scrcpy.tap(500, 500)
-    
-    # 模拟滑动
-    await device.scrcpy.swipe(100, 1000, 100, 200, duration=0.5)
-    
-    # 输入文本
-    await device.scrcpy.text("Hello async-adbc!")
-    
+    await device.scrcpy.start(max_fps=15)
+
+    # 获取一帧截图并保存为 png
+    h264_data = await device.scrcpy.screencap(save_file="screenshot.png")
+    print(f"截图完成，原始数据: {len(h264_data)} 字节")
+
     # 停止 scrcpy
     await device.scrcpy.stop()
 
@@ -54,44 +54,27 @@ asyncio.run(main())
 
 ## 方法
 
-### init
-
-```python
-async def init()
-```
-
-初始化 scrcpy，推送 scrcpy-server.jar 到设备。通常不需要手动调用，`start()` 方法会自动调用。
-
-**示例：**
-```python
-await device.scrcpy.init()
-```
-
----
-
 ### start
 
 ```python
-async def start(max_size: int = 0, bit_rate: int = 8000000, port: Optional[int] = None)
+async def start(max_size: int = 0, max_fps: int = 0, bit_rate: int = 8000000, stay_awake: bool = True)
 ```
 
 启动 scrcpy 服务器并建立连接。
 
 **参数：**
 - `max_size` (int): 最大分辨率，0 表示不限制
+- `max_fps` (int): 最大帧率，0 表示不限制
 - `bit_rate` (int): 比特率，默认 8000000 (8Mbps)
-- `port` (Optional[int]): 本地端口，None 则使用默认端口 27183
+- `stay_awake` (bool): 是否保持设备常亮，默认 True
 
 **示例：**
 ```python
 # 使用默认配置启动
 await device.scrcpy.start()
 
-# 限制最大分辨率为 1080p，比特率为 4Mbps
-await device.scrcpy.start(max_size=1080, bit_rate=4000000)
-
-# 使用自定义端口
-await device.scrcpy.start(port=27184)
+# 限制最大分辨率为 720p，帧率 15fps
+await device.scrcpy.start(max_size=720, max_fps=15)
 ```
 
 ---
@@ -111,213 +94,149 @@ await device.scrcpy.stop()
 
 ---
 
-### get_frame
+### screencap
 
 ```python
-async def get_frame() -> Optional[bytes]
+async def screencap(save_file: Optional[str] = None, timeout: float = 3.0) -> bytes
 ```
 
-获取当前视频帧。
+获取一帧截图并返回原始 H.264 数据。
+
+如果指定 `save_file`，则会自动保存文件：
+- `.png/.jpg/.jpeg`：自动解码并保存为图片
+- `.h264`：保存原始 H.264 数据
+- 无扩展名：默认保存为 PNG
+
+**参数：**
+- `save_file` (str | None): 保存文件路径
+- `timeout` (float): 超时时间，默认 3.0
 
 **返回：**
-- `Optional[bytes]`: 视频帧数据（H.264 编码），如果没有数据则返回 None
+- `bytes`: 原始 H.264 二进制数据
 
 **示例：**
 ```python
-frame = await device.scrcpy.get_frame()
-if frame:
-    print(f"帧大小: {len(frame)} 字节")
-    # 可以保存到文件或进行解码处理
-    with open("frame.h264", "wb") as f:
-        f.write(frame)
+# 直接返回数据，不保存
+h264_data = await device.scrcpy.screencap()
+
+# 保存为 PNG
+await device.scrcpy.screencap("screenshot.png")
+
+# 保存为 JPG
+await device.scrcpy.screencap("screenshot.jpg")
+
+# 保存原始 H.264
+await device.scrcpy.screencap("screenshot.h264")
 ```
 
 ---
 
-### tap
+### stream_frames
 
 ```python
-async def tap(x: int, y: int)
+async def stream_frames() -> AsyncGenerator[bytes, None]
 ```
 
-模拟点击。
-
-**参数：**
-- `x` (int): x 坐标
-- `y` (int): y 坐标
+异步生成器，流式获取 H.264 视频帧数据。
 
 **示例：**
 ```python
-# 点击屏幕中心
-await device.scrcpy.tap(540, 960)
+async for chunk in device.scrcpy.stream_frames():
+    # 处理数据...
+    if should_stop:
+        break
 ```
 
 ---
 
-### swipe
+### record
 
 ```python
-async def swipe(x1: int, y1: int, x2: int, y2: int, duration: float = 0.3)
+async def record(output_path: str, duration: float = 10.0)
 ```
 
-模拟滑动。
+录制视频到本地文件（保存原始 H.264 数据）。
 
 **参数：**
-- `x1, y1` (int): 起始坐标
-- `x2, y2` (int): 结束坐标
-- `duration` (float): 持续时间（秒），默认 0.3
+- `output_path` (str): 输出文件路径
+- `duration` (float): 录制时长（秒），默认 10.0
 
 **示例：**
 ```python
-# 从下往上滑动（类似滚动）
-await device.scrcpy.swipe(500, 1500, 500, 500, duration=0.5)
+await device.scrcpy.record("video.h264", duration=10.0)
 ```
 
 ---
 
-### keycode
+### device_info (属性)
 
-```python
-async def keycode(keycode: int)
-```
-
-发送按键事件。
-
-**参数：**
-- `keycode` (int): Android 键码
-
-**常用键码：**
-- `3`: HOME 键
-- `4`: 返回键
-- `26`: 电源键
-- `24`: 音量加
-- `25`: 音量减
+获取设备信息（包含名称和分辨率）。
 
 **示例：**
 ```python
-from async_adbc import Keycode
-
-# 按下 HOME 键
-await device.scrcpy.keycode(Keycode.KEYCODE_HOME)
-
-# 按下返回键
-await device.scrcpy.keycode(Keycode.KEYCODE_BACK)
+await device.scrcpy.start()
+info = device.scrcpy.device_info
+print(f"设备名: {info.name}, 分辨率: {info.width}x{info.height}")
 ```
 
 ---
 
-### text
+## Async with 上下文管理器
+
+支持 `async with` 自动管理 start/stop：
 
 ```python
-async def text(text: str)
-```
-
-输入文本。
-
-**参数：**
-- `text` (str): 要输入的文本
-
-**示例：**
-```python
-await device.scrcpy.text("Hello, World!")
-```
-
----
-
-## StreamReceiver 类
-
-用于接收视频流的类，通常通过 `get_frame()` 获取帧数据，或设置回调实时处理。
-
-### set_frame_callback
-
-```python
-def set_frame_callback(callback: Callable[[bytes], None])
-```
-
-设置帧数据回调函数。
-
-**参数：**
-- `callback` (Callable[[bytes], None]): 回调函数，接收帧数据作为参数
-
-**示例：**
-```python
-def on_frame(frame_data):
-    print(f"收到新帧，大小: {len(frame_data)}")
-
-# 设置回调
-device.scrcpy._stream_receiver.set_frame_callback(on_frame)
+async with device.scrcpy:
+    await device.scrcpy.screencap("test.png")
+# 退出块时自动调用 stop()
 ```
 
 ---
 
 ## 完整示例
 
-### 实时屏幕录制
+### 连续截图
 
 ```python
 import asyncio
 from async_adbc import ADBClient
 
-async def record_screen():
+async def multi_screenshot():
     adbc = ADBClient()
     device = await adbc.device()
-    
-    # 启动 scrcpy
-    await device.scrcpy.start(max_size=720, bit_rate=2000000)
-    
-    # 录制 10 秒
-    frames = []
-    start_time = asyncio.get_event_loop().time()
-    
-    while asyncio.get_event_loop().time() - start_time < 10:
-        frame = await device.scrcpy.get_frame()
-        if frame:
-            frames.append(frame)
-        await asyncio.sleep(0.01)
-    
-    # 保存所有帧
-    with open("screen_recording.h264", "wb") as f:
-        for frame in frames:
-            f.write(frame)
-    
-    print(f"录制完成，共 {len(frames)} 帧")
-    
-    # 停止 scrcpy
+
+    await device.scrcpy.start(max_fps=15)
+
+    for i in range(5):
+        await device.scrcpy.screencap(f"frame_{i}.png")
+        await asyncio.sleep(0.5)
+
     await device.scrcpy.stop()
 
-asyncio.run(record_screen())
+asyncio.run(multi_screenshot())
 ```
 
-### 自动化操作
+### 录制视频
 
 ```python
 import asyncio
-from async_adbc import ADBClient, Keycode
+from pathlib import Path
+from async_adbc import ADBClient
 
-async def automate():
+async def record_video():
     adbc = ADBClient()
     device = await adbc.device()
-    
-    await device.scrcpy.start()
-    
-    # 按下 HOME 键
-    await device.scrcpy.keycode(Keycode.KEYCODE_HOME)
-    await asyncio.sleep(1)
-    
-    # 点击应用图标（假设位置）
-    await device.scrcpy.tap(200, 300)
-    await asyncio.sleep(2)
-    
-    # 输入文本
-    await device.scrcpy.text("test input")
-    await asyncio.sleep(1)
-    
-    # 返回
-    await device.scrcpy.keycode(Keycode.KEYCODE_BACK)
-    
+
+    await device.scrcpy.start(max_fps=15, max_size=720)
+
+    # 录制 10 秒
+    await device.scrcpy.record("output.h264", duration=10.0)
+
     await device.scrcpy.stop()
 
-asyncio.run(automate())
+    print(f"视频已保存到 output.h264")
+
+asyncio.run(record_video())
 ```
 
 ---
@@ -326,6 +245,6 @@ asyncio.run(automate())
 
 1. 确保设备已启用 USB 调试
 2. `start()` 和 `stop()` 需要配对使用
-3. 获取帧时第一次可能返回 None，需要稍等片刻
-4. 坐标基于设备屏幕原始分辨率
-5. 使用完毕后务必调用 `stop()` 清理资源，否则可能导致端口占用
+3. 使用 `max_size` 可以降低分辨率，提高性能
+4. 使用完毕后务必调用 `stop()` 清理资源
+5. 图片解码功能需要安装可选依赖 `av` 和 `pillow`
