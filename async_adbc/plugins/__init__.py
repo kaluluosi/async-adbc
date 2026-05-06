@@ -33,7 +33,7 @@ from .am import ActivityManagerPlugin
 from .logcat import LogcatPlugin
 from .wm import WMPlugin
 from .input import InputPlugin
-from .scrcpy import ScrcpyPlugin
+from .scrcpy import ScrcpyPlugin, ScrcpySession, DeviceInfo, ScrcpyError
 
 
 __all__ = [
@@ -53,4 +53,7 @@ __all__ = [
     "WMPlugin",
     "InputPlugin",
     "ScrcpyPlugin",
+    "ScrcpySession",
+    "DeviceInfo",
+    "ScrcpyError",
 ]
