@@ -211,6 +211,17 @@ class ScrcpyPlugin(Plugin):
                     '127.0.0.1', self._local_port
                 )
                 
+                # 发送客户端握手信息
+                # scrcpy 协议：先发送一个 dummy byte（0），然后发送 "scrcpy" 和版本信息
+                # 根据 scrcpy 源码，可能需要发送 dummy byte
+                self._stream_writer.write(b"\x00")  # dummy byte
+                await self._stream_writer.drain()
+                
+                # 然后发送 scrcpy 标识和版本
+                handshake = b"scrcpy" + (1).to_bytes(4, 'big')  # 版本 1
+                self._stream_writer.write(handshake)
+                await self._stream_writer.drain()
+                
                 # 读取初始设备信息（握手）
                 self._device_info = await self._read_device_info()
                 
