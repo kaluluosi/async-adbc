@@ -129,23 +129,52 @@ class ScrcpyPlugin(Plugin):
 
         # 启动 scrcpy 服务器
         # 使用正确的 app_process 语法和完整类名
-        # scrcpy 3.x 版本参数格式：第一个参数是客户端版本号，后续参数用 -- 开头
-        server_cmd = [
-            "CLASSPATH=/data/local/tmp/scrcpy-server.jar",
-            "app_process",
-            "/",  # app_process 的工作目录，不是 /data/local/tmp
-            "com.genymobile.scrcpy.Server",  # 使用完整的 Java 类名
-            "3.3.4",  # 客户端版本号（第一个参数必须是版本号）
-            "--log-level=info",  # scrcpy 3.x 要求参数以 -- 开头，下划线改为短横线
-            f"--bit-rate={bit_rate}",
-        ]
-        if max_size > 0:
-            server_cmd.append(f"--max-size={max_size}")
+        # scrcpy 版本检测和参数格式适配
+        
+        # 首先检查服务器版本（通过文件大小或内容）
+        # scrcpy 1.20 文件大小约 37KB，3.3.4 文件大小约 2.2MB
+        # 这里我们假设如果文件大小小于 100KB，则是 1.x 版本
+        server_size = 0
+        try:
+            # 获取服务器文件大小
+            result = await self._device.shell("stat -c%s /data/local/tmp/scrcpy-server.jar")
+            server_size = int(result.stdout.strip())
+        except:
+            pass
+        
+        is_scrcpy_1_x = server_size < 100000  # 小于 100KB 认为是 1.x 版本
+        
+        if is_scrcpy_1_x:
+            # scrcpy 1.x 版本参数格式
+            server_cmd = [
+                "CLASSPATH=/data/local/tmp/scrcpy-server.jar",
+                "app_process",
+                "/",
+                "com.genymobile.scrcpy.Server",
+                f"bit_rate={bit_rate}",  # 1.x 使用下划线，没有 -- 前缀
+                "log_level=info",
+            ]
+            if max_size > 0:
+                server_cmd.append(f"max_size={max_size}")
+        else:
+            # scrcpy 3.x 版本参数格式
+            server_cmd = [
+                "CLASSPATH=/data/local/tmp/scrcpy-server.jar",
+                "app_process",
+                "/",
+                "com.genymobile.scrcpy.Server",
+                "3.3.4",  # 客户端版本号
+                "--log-level=info",
+                f"--bit-rate={bit_rate}",
+            ]
+            if max_size > 0:
+                server_cmd.append(f"--max-size={max_size}")
 
         # 直接调用 request（Device 继承自 LocalService），保存 Response 对象，防止被 GC
         self._server_response = await self._device.request("shell", " ".join(server_cmd))
         self._server_reader = self._server_response.reader
         self._is_running = True
+        self._is_scrcpy_1_x = is_scrcpy_1_x  # 保存版本信息
 
         # 建立 socket 连接
         try:
@@ -211,11 +240,16 @@ class ScrcpyPlugin(Plugin):
                     '127.0.0.1', self._local_port
                 )
                 
-                # scrcpy 协议：客户端先接收一个 dummy byte
-                # 根据 pyscrcpy 源码，服务器会先发送一个 dummy byte
-                dummy_byte = await self._stream_reader.readexactly(1)
-                if not dummy_byte:
-                    raise ConnectionError("Did not receive Dummy Byte!")
+                # 根据服务器版本使用不同的握手协议
+                if self._is_scrcpy_1_x:
+                    # scrcpy 1.x 协议：客户端先接收一个 dummy byte
+                    dummy_byte = await self._stream_reader.readexactly(1)
+                    if not dummy_byte:
+                        raise ConnectionError("Did not receive Dummy Byte!")
+                else:
+                    # scrcpy 3.x 协议：TODO - 需要找到正确的协议
+                    # 目前我们不知道 3.x 的协议，暂时跳过
+                    pass
                 
                 # 读取初始设备信息（握手）
                 self._device_info = await self._read_device_info()
@@ -252,25 +286,46 @@ class ScrcpyPlugin(Plugin):
     async def _read_device_info(self):
         """
         读取初始设备信息（握手阶段）
-        根据 pyscrcpy 协议：
-        1. 接收设备名称（最多 64 字节，以 null 结尾）
-        2. 接收分辨率（4 字节，大端序的宽和高）
         """
         if not self._stream_reader:
             return
 
-        # 读取设备名称（最多 64 字节，以 null 结尾）
-        device_name_bytes = await self._stream_reader.readexactly(64)
-        # 找到 null 终止符
-        null_pos = device_name_bytes.find(b'\x00')
-        if null_pos != -1:
-            device_name_bytes = device_name_bytes[:null_pos]
-        device_name = device_name_bytes.decode('utf-8', errors='ignore')
+        if self._is_scrcpy_1_x:
+            # scrcpy 1.x 协议（基于 pyscrcpy）
+            # 1. 接收设备名称（最多 64 字节，以 null 结尾）
+            # 2. 接收分辨率（4 字节，大端序的宽和高）
+            device_name_bytes = await self._stream_reader.readexactly(64)
+            # 找到 null 终止符
+            null_pos = device_name_bytes.find(b'\x00')
+            if null_pos != -1:
+                device_name_bytes = device_name_bytes[:null_pos]
+            device_name = device_name_bytes.decode('utf-8', errors='ignore')
 
-        # 读取宽度和高度（4 字节，大端序）
-        size_bytes = await self._stream_reader.readexactly(4)
-        width = int.from_bytes(size_bytes[:2], byteorder='big')
-        height = int.from_bytes(size_bytes[2:], byteorder='big')
+            # 读取宽度和高度（4 字节，大端序）
+            size_bytes = await self._stream_reader.readexactly(4)
+            width = int.from_bytes(size_bytes[:2], byteorder='big')
+            height = int.from_bytes(size_bytes[2:], byteorder='big')
+        else:
+            # scrcpy 3.x 协议：TODO - 需要找到正确的协议
+            # 目前我们不知道 3.x 的协议，尝试通用的协议
+            try:
+                # 尝试读取设备名称长度（1字节）
+                name_len_bytes = await self._stream_reader.readexactly(1)
+                name_len = name_len_bytes[0]
+
+                # 读取设备名称
+                device_name_bytes = await self._stream_reader.readexactly(name_len)
+                device_name = device_name_bytes.decode('utf-8', errors='ignore')
+
+                # 读取宽度和高度（4字节）
+                size_bytes = await self._stream_reader.readexactly(4)
+                width = int.from_bytes(size_bytes[:2], byteorder='big')
+                height = int.from_bytes(size_bytes[2:], byteorder='big')
+            except Exception as e:
+                # 如果失败，使用默认值
+                device_name = "Unknown Device"
+                width = 720
+                height = 1280
 
         return {
             'device_name': device_name,
