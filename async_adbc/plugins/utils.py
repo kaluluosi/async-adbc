@@ -10,7 +10,7 @@ class UtilsPlugin(Plugin):
     """
 
     async def screencap(self, save_file: Optional[str] = None) -> bytes:
-        """原生截屏，效率很慢，建议用minicap代替
+        """原生截屏，效率较慢
 
         Args:
             save_file (str | None, optional): 保存文件，png格式，为空就不保存. Defaults to None.

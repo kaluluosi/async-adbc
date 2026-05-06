@@ -1,5 +1,6 @@
 """测试配置与共享 Fixtures 模块"""
 import asyncio
+import os
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
@@ -216,3 +217,15 @@ def real_adbclient():
     """真实的 ADBClient 对象（用于集成测试）"""
     from async_adbc.client import ADBClient
     return ADBClient()
+
+
+@pytest.fixture(scope="session")
+def device_serialno():
+    """获取设备序列号（从环境变量或使用第一个设备）"""
+    # 从环境变量读取设备序列号
+    serialno = os.getenv("ADB_DEVICE_SERIALNO")
+    if serialno:
+        return serialno
+    
+    # 如果没有指定，返回 None，测试中使用第一个设备
+    return None

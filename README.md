@@ -107,7 +107,7 @@ asyncio.run(main())
 | `device.input` | 输入模拟（点击、滑动、按键等） |
 | `device.logcat` | 日志 |
 | `device.mem` | 内存信息 |
-| `device.minicap` | 截图（高效） |
+| `device.scrcpy` | Scrcpy 屏幕镜像和控制 |
 | `device.pm` | 包管理（安装、卸载、列出包等） |
 | `device.prop` | 属性（获取设备属性） |
 | `device.temp` | 温度 |

@@ -6,15 +6,21 @@ import os
 from async_adbc.client import ADBClient
 
 
+@pytest.fixture
+def target_serialno(device_serialno):
+    """获取目标设备序列号"""
+    return device_serialno
+
+
 @pytest.mark.integration
 @pytest.mark.asyncio
 class TestLocalServiceIntegration:
     """测试 LocalService 集成"""
 
-    async def test_shell(self):
+    async def test_shell(self, target_serialno):
         """测试 shell 命令"""
         adbc = ADBClient()
-        device = await adbc.device("emulator-5554")
+        device = await adbc.device(target_serialno)
         try:
             result = await device.shell("echo hello world")
             assert "hello world" in result
@@ -22,10 +28,10 @@ class TestLocalServiceIntegration:
             device.close()
             adbc.close()
 
-    async def test_shell_raw(self):
+    async def test_shell_raw(self, target_serialno):
         """测试 shell_raw 命令"""
         adbc = ADBClient()
-        device = await adbc.device("emulator-5554")
+        device = await adbc.device(target_serialno)
         try:
             result = await device.shell_raw("echo hello world")
             assert b"hello world" in result
@@ -33,10 +39,10 @@ class TestLocalServiceIntegration:
             device.close()
             adbc.close()
 
-    async def test_get_properties(self):
+    async def test_get_properties(self, target_serialno):
         """测试获取设备属性"""
         adbc = ADBClient()
-        device = await adbc.device("emulator-5554")
+        device = await adbc.device(target_serialno)
         try:
             props = await device.get_properties()
             assert isinstance(props, dict)
@@ -46,10 +52,10 @@ class TestLocalServiceIntegration:
             device.close()
             adbc.close()
 
-    async def test_file_exists(self):
+    async def test_file_exists(self, target_serialno):
         """测试文件存在判断"""
         adbc = ADBClient()
-        device = await adbc.device("emulator-5554")
+        device = await adbc.device(target_serialno)
         try:
             # /system 应该存在
             exists = await device.file_exists("/system")
@@ -58,10 +64,10 @@ class TestLocalServiceIntegration:
             device.close()
             adbc.close()
 
-    async def test_push_pull(self):
+    async def test_push_pull(self, target_serialno):
         """测试文件推送和拉取"""
         adbc = ADBClient()
-        device = await adbc.device("emulator-5554")
+        device = await adbc.device(target_serialno)
         # 创建临时测试文件
         with tempfile.NamedTemporaryFile(mode="w", suffix=".txt", delete=False) as f:
             test_content = "test file content for async-adbc integration test"
@@ -98,7 +104,7 @@ class TestLocalServiceIntegration:
             # 清理设备上的文件
             try:
                 adbc2 = ADBClient()
-                dev2 = await adbc2.device("emulator-5554")
+                dev2 = await adbc2.device(target_serialno)
                 await dev2.shell(f"rm {remote_path}")
                 dev2.close()
                 adbc2.close()

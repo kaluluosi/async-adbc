@@ -23,7 +23,6 @@ nav:
     - Input: plugins/input.md
     - Logcat: plugins/logcat.md
     - Mem: plugins/mem.md
-    - MiniCap: plugins/minicap.md
     - PM (Package Manager): plugins/pm.md
     - Prop: plugins/prop.md
     - Temp: plugins/temp.md
