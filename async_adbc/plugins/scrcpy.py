@@ -129,16 +129,18 @@ class ScrcpyPlugin(Plugin):
 
         # 启动 scrcpy 服务器
         # 使用正确的 app_process 语法和完整类名
+        # scrcpy 3.x 版本参数格式：第一个参数是客户端版本号，后续参数用 -- 开头
         server_cmd = [
             "CLASSPATH=/data/local/tmp/scrcpy-server.jar",
             "app_process",
             "/",  # app_process 的工作目录，不是 /data/local/tmp
             "com.genymobile.scrcpy.Server",  # 使用完整的 Java 类名
-            "log_level=info",
-            f"bit_rate={bit_rate}",
+            "3.3.4",  # 客户端版本号（第一个参数必须是版本号）
+            "--log-level=info",  # scrcpy 3.x 要求参数以 -- 开头，下划线改为短横线
+            f"--bit-rate={bit_rate}",
         ]
         if max_size > 0:
-            server_cmd.append(f"max_size={max_size}")
+            server_cmd.append(f"--max-size={max_size}")
 
         # 直接调用 request（Device 继承自 LocalService），保存 Response 对象，防止被 GC
         self._server_response = await self._device.request("shell", " ".join(server_cmd))

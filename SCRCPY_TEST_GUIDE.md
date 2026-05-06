@@ -48,7 +48,7 @@ adb forward tcp:27183 localabstract:scrcpy
 
 打开一个新的命令提示符窗口，执行：
 ```bash
-adb shell "export CLASSPATH=/data/local/tmp/scrcpy-server.jar && app_process / com.genymobile.scrcpy.Server log_level=debug bit_rate=2000000"
+adb shell "export CLASSPATH=/data/local/tmp/scrcpy-server.jar && app_process / com.genymobile.scrcpy.Server 3.3.4 --log-level=debug --bit-rate=2000000"
 ```
 
 这个命令会：
@@ -60,6 +60,8 @@ adb shell "export CLASSPATH=/data/local/tmp/scrcpy-server.jar && app_process / c
 **注意**：
 - `app_process /` 表示在工作目录 / 下执行
 - `com.genymobile.scrcpy.Server` 是完整的 Java 类名（不是 `scrcpy.Server`）
+- **第一个参数必须是客户端版本号**（这里是 3.3.4）
+- **参数必须以 `--` 开头**，下划线改为短横线（`--log-level` 而不是 `log_level`）
 
 ### 6. 测试连接（在原来的终端窗口）
 
